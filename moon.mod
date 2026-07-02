@@ -9,7 +9,7 @@
 //   "moonbitlang/x@0.4.6",
 // }
 
-name = "username/millow"
+name = "megemini/millow"
 
 version = "0.1.0"
 
@@ -19,6 +19,6 @@ repository = ""
 
 license = "Apache-2.0"
 
-keywords = []
+keywords = [ "image", "image-processing", "graphics", "pixel" ]
 
-description = ""
+description = "A zero-FFI, cross-platform image-processing library for MoonBit."

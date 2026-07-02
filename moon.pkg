@@ -1,0 +1,11 @@
+import {
+  "megemini/millow/src",
+}
+
+import {
+  "moonbitlang/core/debug" @debug,
+} for "test"
+
+import {
+  "moonbitlang/core/debug" @debug,
+} for "wbtest"

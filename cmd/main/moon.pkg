@@ -1,6 +1,6 @@
-// import {
-//   "username/millow" @lib,
-// }
+import {
+  "megemini/millow",
+}
 
 options(
   "is-main": true,

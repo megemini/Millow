@@ -4,3 +4,8 @@ target/
 target
 .mooncakes/
 .moonagent/
+
+# ide files
+.mimocode/
+.codeartsdoer/
+.vscode/
