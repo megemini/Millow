@@ -1,0 +1,7 @@
+import {
+  "megemini/millow",
+}
+
+import {
+  "moonbitlang/core/debug" @debug,
+} for "test"
