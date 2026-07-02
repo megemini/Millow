@@ -1,0 +1,7 @@
+// import {
+//   "username/millow" @lib,
+// }
+
+options(
+  "is-main": true,
+)
