@@ -1,0 +1,177 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "megemini/millow"
+
+import {
+  "megemini/millow/src",
+}
+
+// Values
+pub fn adjust_brightness(@src.Image, Int) -> @src.Image
+
+pub fn adjust_contrast(@src.Image, Double) -> @src.Image
+
+pub fn adjust_gamma(@src.Image, Double) -> @src.Image
+
+pub fn auto_contrast(@src.Image, Int) -> @src.Image
+
+pub fn black_hat(@src.Image, @src.Kernel) -> @src.Image
+
+pub fn box_blur(@src.Image, Int) -> @src.Image
+
+pub fn clamp_byte(Int) -> Byte
+
+pub fn clampd(Double, Double, Double) -> Double
+
+pub fn clampi(Int, Int, Int) -> Int
+
+pub fn composite_over(@src.Image, @src.Image) -> @src.Image
+
+pub fn convolve(@src.Image, Array[Array[Double]], Bool) -> @src.Image
+
+pub fn crop(@src.Image, Int, Int, Int, Int) -> @src.Image raise @src.ImageError
+
+pub fn decode(Array[Byte], String) -> @src.Image raise @src.ImageError
+
+pub fn dilate(@src.Image, @src.Kernel) -> @src.Image
+
+pub fn draw_circle(@src.Image, Int, Int, Int, Byte, Byte, Byte, Byte, Bool, Int) -> @src.Image
+
+pub fn draw_line(@src.Image, Int, Int, Int, Int, Byte, Byte, Byte, Byte, Int) -> @src.Image
+
+pub fn draw_pixel(@src.Image, Int, Int, Byte, Byte, Byte, Byte) -> @src.Image
+
+pub fn draw_rect(@src.Image, Int, Int, Int, Int, Byte, Byte, Byte, Byte, Bool, Int) -> @src.Image
+
+pub fn encode(@src.Image, String) -> Array[Byte] raise @src.ImageError
+
+pub fn equalize_histogram(@src.Image) -> @src.Image
+
+pub fn equals(@src.Image, @src.Image) -> Bool
+
+pub fn erode(@src.Image, @src.Kernel) -> @src.Image
+
+pub fn flatten_alpha(@src.Image, Byte, Byte, Byte) -> @src.Image
+
+pub fn flip_horizontal(@src.Image) -> @src.Image
+
+pub fn flip_vertical(@src.Image) -> @src.Image
+
+pub fn gaussian_blur(@src.Image, Double) -> @src.Image
+
+pub fn gaussian_blur_kernel(@src.Image, Int, Double) -> @src.Image
+
+pub fn histogram(@src.Image) -> Array[Int]
+
+pub fn histogram_color(@src.Image) -> Array[Array[Int]]
+
+pub fn info(@src.Image) -> String
+
+pub fn invert(@src.Image) -> @src.Image
+
+pub fn laplacian(@src.Image) -> @src.Image
+
+pub fn max_filter(@src.Image, Int) -> @src.Image
+
+pub fn median_filter(@src.Image, Int) -> @src.Image
+
+pub fn merge_channels(Array[Byte], Array[Byte], Array[Byte], Array[Byte]?) -> @src.Image raise @src.ImageError
+
+pub fn min_filter(@src.Image, Int) -> @src.Image
+
+pub fn morph_close(@src.Image, @src.Kernel) -> @src.Image
+
+pub fn morph_gradient(@src.Image, @src.Kernel) -> @src.Image
+
+pub fn morph_open(@src.Image, @src.Kernel) -> @src.Image
+
+pub fn mse(@src.Image, @src.Image) -> Double
+
+pub fn normalize(@src.Image, Byte, Byte) -> @src.Image
+
+pub fn pad(@src.Image, Int, Int, Int, Int, @src.PadMode) -> @src.Image
+
+pub fn pad_to_size(@src.Image, Int, Int, @src.PadMode) -> @src.Image
+
+pub fn prewitt(@src.Image) -> @src.Image
+
+pub fn psnr(@src.Image, @src.Image) -> Double
+
+pub fn register_decoder(String, &@src.Decoder) -> Unit
+
+pub fn register_encoder(String, &@src.Encoder) -> Unit
+
+pub fn rescale(@src.Image, Double, @src.Interp) -> @src.Image
+
+pub fn resize(@src.Image, Int, Int, @src.Interp) -> @src.Image
+
+pub fn resize_to_cover(@src.Image, Int, Int, @src.Interp) -> @src.Image raise @src.ImageError
+
+pub fn resize_to_fit(@src.Image, Int, Int, @src.Interp) -> @src.Image
+
+pub fn rotate_180(@src.Image) -> @src.Image
+
+pub fn rotate_270(@src.Image) -> @src.Image
+
+pub fn rotate_90(@src.Image) -> @src.Image
+
+pub fn round_byte(Double) -> Byte
+
+pub fn scharr(@src.Image) -> @src.Image
+
+pub fn sharpen(@src.Image, Double) -> @src.Image
+
+pub fn sobel(@src.Image) -> @src.Image
+
+pub fn sobel_x(@src.Image) -> Array[Array[Float]]
+
+pub fn sobel_y(@src.Image) -> Array[Array[Float]]
+
+pub fn threshold(@src.Image, Byte) -> @src.Image
+
+pub fn threshold_inv(@src.Image, Byte) -> @src.Image
+
+pub fn threshold_otsu(@src.Image) -> (Byte, @src.Image)
+
+pub fn thumbnail(@src.Image, Int, Int) -> @src.Image
+
+pub fn tint(@src.Image, Byte, Byte, Byte) -> @src.Image
+
+pub fn to_bgr(@src.Image) -> @src.Image
+
+pub fn to_display_bytes(@src.Image) -> Array[Byte]
+
+pub fn to_grayscale(@src.Image) -> @src.Image
+
+pub fn to_grayscale_weighted(@src.Image, Double, Double, Double) -> @src.Image
+
+pub fn to_pgm(@src.Image) -> Array[Byte]
+
+pub fn to_ppm(@src.Image) -> Array[Byte]
+
+pub fn top_hat(@src.Image, @src.Kernel) -> @src.Image
+
+pub fn unsharp_mask(@src.Image, Double, Double, Byte) -> @src.Image
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+pub using @src {type Image}
+
+pub using @src {type ImageError}
+
+pub using @src {type Interp}
+
+pub using @src {type Kernel}
+
+pub using @src {type PadMode}
+
+pub using @src {type PpmEncoder}
+
+pub using @src {trait Decoder}
+
+pub using @src {trait Encoder}
+
+// Traits
+
