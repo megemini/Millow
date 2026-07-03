@@ -2,17 +2,35 @@
 package "megemini/millow/src"
 
 // Values
-pub fn adjust_brightness(Image, Int) -> Image
+pub fn adjust_brightness(Image, Double) -> Image
 
 pub fn adjust_contrast(Image, Double) -> Image
 
 pub fn adjust_gamma(Image, Double) -> Image
 
+pub fn affine_transform(Image, Array[Double], Int, Int, Interp, mode? : BorderMode) -> Image
+
+pub fn apply_lut(Image, Array[Byte], Array[Byte], Array[Byte], Array[Byte]?) -> Image
+
+pub fn apply_lut_uniform(Image, Array[Byte]) -> Image
+
+pub fn augment_pipeline(Image, Array[Augmentation]) -> Image raise
+
+pub fn augment_random_choice(Image, Array[(Double, Augmentation)]) -> Image raise
+
 pub fn auto_contrast(Image, Int) -> Image
+
+pub fn bilateral_filter(Image, Int, Double, Double) -> Image
+
+pub fn bilinear_luma(Image, Double, Double, BorderMode) -> Double
 
 pub fn black_hat(Image, Kernel) -> Image
 
 pub fn box_blur(Image, Int) -> Image
+
+pub fn canny(Image, Double, Double) -> Image
+
+pub fn clahe(Image, Double, (Int, Int)) -> Image
 
 pub fn clamp_byte(Int) -> Byte
 
@@ -20,9 +38,21 @@ pub fn clampd(Double, Double, Double) -> Double
 
 pub fn clampi(Int, Int, Int) -> Int
 
+pub fn composite_color(Image, Image, Byte, Byte, Byte) -> Image
+
 pub fn composite_over(Image, Image) -> Image
 
+pub fn connected_components(Image, Int) -> (Array[Array[Int]], Int)
+
 pub fn convolve(Image, Array[Array[Double]], Bool) -> Image
+
+pub fn corner_harris(Image, Int, Int, Double) -> Array[Array[Double]]
+
+pub fn corner_shi_tomasi(Image, Int, Int) -> Array[Array[Double]]
+
+pub fn count_nonzero(Image) -> Int
+
+pub fn count_pixels(Image, Byte) -> Int
 
 pub fn crop(Image, Int, Int, Int, Int) -> Image raise ImageError
 
@@ -32,9 +62,13 @@ pub fn dilate(Image, Kernel) -> Image
 
 pub fn draw_circle(Image, Int, Int, Int, Byte, Byte, Byte, Byte, Bool, Int) -> Image
 
+pub fn draw_ellipse(Image, Int, Int, Int, Int, Byte, Byte, Byte, Byte, Bool, Int) -> Image
+
 pub fn draw_line(Image, Int, Int, Int, Int, Byte, Byte, Byte, Byte, Int) -> Image
 
 pub fn draw_pixel(Image, Int, Int, Byte, Byte, Byte, Byte) -> Image
+
+pub fn draw_polygon(Image, Array[(Int, Int)], Byte, Byte, Byte, Byte, Bool, Int) -> Image
 
 pub fn draw_rect(Image, Int, Int, Int, Int, Byte, Byte, Byte, Byte, Bool, Int) -> Image
 
@@ -46,25 +80,57 @@ pub fn equals(Image, Image) -> Bool
 
 pub fn erode(Image, Kernel) -> Image
 
+pub fn find_contours(Image) -> Array[Array[(Int, Int)]]
+
 pub fn flatten_alpha(Image, Byte, Byte, Byte) -> Image
 
 pub fn flip_horizontal(Image) -> Image
 
 pub fn flip_vertical(Image) -> Image
 
+pub fn flood_fill(Image, Int, Int, Byte, Byte, Byte, Byte, Byte) -> Image
+
+pub fn from_hsv(Array[Array[Double]], Array[Array[Double]], Array[Array[Double]]) -> Image
+
+pub fn from_ycbcr(Array[Array[Double]], Array[Array[Double]], Array[Array[Double]]) -> Image
+
 pub fn gaussian_blur(Image, Double) -> Image
 
 pub fn gaussian_blur_kernel(Image, Int, Double) -> Image
 
+pub fn get_pixel(Image, Int, Int, BorderMode) -> (Byte, Byte, Byte, Byte)
+
+pub fn grayscale_to_rgb(Image) -> Image
+
+pub fn grayscale_to_rgba(Image) -> Image
+
 pub fn histogram(Image) -> Array[Int]
 
 pub fn histogram_color(Image) -> Array[Array[Int]]
+
+pub fn histogram_correlation(Image, Image) -> Double
+
+pub fn hit_or_miss(Image, Array[Array[Int]]) -> Image
+
+pub fn hog(Image, Int, Int, Int) -> Array[Double]
+
+pub fn hu_moments(Image) -> Array[Double]
 
 pub fn info(Image) -> String
 
 pub fn invert(Image) -> Image
 
 pub fn laplacian(Image) -> Image
+
+pub fn lbp(Image, Int, Int) -> Array[Int]
+
+pub fn lbp_histogram(Image, Int, Int) -> Array[Int]
+
+pub fn luma_at(Image, Int, Int) -> Double
+
+pub fn luma_at_mode(Image, Int, Int, BorderMode) -> Double
+
+pub fn match_histogram(Image, Image) -> Image
 
 pub fn max_filter(Image, Int) -> Image
 
@@ -73,6 +139,8 @@ pub fn median_filter(Image, Int) -> Image
 pub fn merge_channels(Array[Byte], Array[Byte], Array[Byte], Array[Byte]?) -> Image raise ImageError
 
 pub fn min_filter(Image, Int) -> Image
+
+pub fn moments(Image) -> Array[Double]
 
 pub fn morph_close(Image, Kernel) -> Image
 
@@ -90,7 +158,29 @@ pub fn pad_to_size(Image, Int, Int, PadMode) -> Image
 
 pub fn prewitt(Image) -> Image
 
+pub fn process_batch(Array[Image], (Image) -> Image) -> Array[Image]
+
 pub fn psnr(Image, Image) -> Double
+
+pub fn random_brightness(Image, Double) -> Image
+
+pub fn random_color_jitter(Image, Double, Double, Double, Double) -> Image
+
+pub fn random_contrast(Image, Double) -> Image
+
+pub fn random_crop(Image, Int, Int) -> Image raise
+
+pub fn random_flip_horizontal(Image) -> Image
+
+pub fn random_gamma(Image, Double) -> Image
+
+pub fn random_noise_gaussian(Image, Double) -> Image
+
+pub fn random_noise_salt_pepper(Image, Double) -> Image
+
+pub fn random_rotate(Image, Double) -> Image
+
+pub fn regionprops(Array[Array[Int]], Int) -> Array[RegionProps]
 
 pub fn register_decoder(String, &Decoder) -> Unit
 
@@ -110,11 +200,17 @@ pub fn rotate_270(Image) -> Image
 
 pub fn rotate_90(Image) -> Image
 
+pub fn rotate_any(Image, Double, Interp) -> Image
+
 pub fn round_byte(Double) -> Byte
 
 pub fn scharr(Image) -> Image
 
 pub fn sharpen(Image, Double) -> Image
+
+pub fn shear(Image, Double, Double, Interp, mode? : BorderMode) -> Image
+
+pub fn skeletonize(Image) -> Image
 
 pub fn sobel(Image) -> Image
 
@@ -122,11 +218,17 @@ pub fn sobel_x(Image) -> Array[Array[Float]]
 
 pub fn sobel_y(Image) -> Array[Array[Float]]
 
+pub fn ssim(Image, Image) -> Double
+
+pub fn standardize(Image) -> Array[Array[Double]]
+
 pub fn threshold(Image, Byte) -> Image
 
 pub fn threshold_inv(Image, Byte) -> Image
 
 pub fn threshold_otsu(Image) -> (Byte, Image)
+
+pub fn threshold_sauvola(Image, Int, Double) -> Image
 
 pub fn thumbnail(Image, Int, Int) -> Image
 
@@ -140,11 +242,21 @@ pub fn to_grayscale(Image) -> Image
 
 pub fn to_grayscale_weighted(Image, Double, Double, Double) -> Image
 
+pub fn to_hsv(Image) -> (Array[Array[Double]], Array[Array[Double]], Array[Array[Double]])
+
 pub fn to_pgm(Image) -> Array[Byte]
 
 pub fn to_ppm(Image) -> Array[Byte]
 
+pub fn to_rgb(Image) -> Image
+
+pub fn to_rgba(Image) -> Image
+
+pub fn to_ycbcr(Image) -> (Array[Array[Double]], Array[Array[Double]], Array[Array[Double]])
+
 pub fn top_hat(Image, Kernel) -> Image
+
+pub fn translate(Image, Double, Double, Interp) -> Image
 
 pub fn unsharp_mask(Image, Double, Double, Byte) -> Image
 
@@ -155,6 +267,27 @@ pub suberror ImageError {
 pub impl Show for ImageError
 
 // Types and methods
+pub enum Augmentation {
+  Crop(Int, Int, Int, Int)
+  Resize(Int, Int)
+  FlipHorizontal
+  FlipVertical
+  Rotate(Double)
+  Brightness(Double)
+  Contrast(Double)
+  Gamma(Double)
+  NoiseGaussian(Double)
+  NoiseSaltPepper(Double)
+  ColorJitter(Double, Double, Double, Double)
+}
+
+pub enum BorderMode {
+  Replicate
+  Reflect
+  Wrap
+  Constant(Byte, Byte, Byte, Byte)
+}
+
 pub(all) struct Image {
   data : Array[Byte]
   h : Int
@@ -167,6 +300,8 @@ pub fn Image::channel_g(Self) -> Array[Byte]
 pub fn Image::channel_r(Self) -> Array[Byte]
 pub fn Image::clone(Self) -> Self
 pub fn Image::for_each_pixel(Self, (Int, Int, Byte, Byte, Byte, Byte) -> Unit) -> Unit
+pub fn Image::for_each_pixel_mut(Self, (Int, Int, Byte, Byte, Byte, Byte) -> (Byte, Byte, Byte, Byte)) -> Self
+pub fn Image::from_channels(Array[Byte], Array[Byte], Array[Byte], Array[Byte]?) -> Self raise ImageError
 pub fn Image::from_data(Array[Byte], Int, Int) -> Self raise ImageError
 pub fn Image::from_pixel(Int, Int, Byte, Byte, Byte, Byte) -> Self
 pub fn Image::height(Self) -> Int
@@ -175,7 +310,9 @@ pub fn Image::len(Self) -> Int
 pub fn Image::new(Int, Int) -> Self
 pub fn Image::offset(Self, Int, Int) -> Int
 pub fn Image::pixel_at(Self, Int, Int) -> (Byte, Byte, Byte, Byte)?
+pub fn Image::pixel_at_unchecked(Self, Int) -> (Byte, Byte, Byte, Byte)
 pub fn Image::pixel_set(Self, Int, Int, Byte, Byte, Byte, Byte) -> Unit raise ImageError
+pub fn Image::pixel_set_unchecked(Self, Int, Byte, Byte, Byte, Byte) -> Unit
 pub fn Image::set_channel(Self, Int, Array[Byte]) -> Self
 pub fn Image::shape(Self) -> (Int, Int)
 pub fn Image::split_channels(Self) -> (Array[Byte], Array[Byte], Array[Byte], Array[Byte])
@@ -204,6 +341,13 @@ pub(all) enum PadMode {
 pub(all) struct PpmEncoder {
 }
 pub impl Encoder for PpmEncoder
+
+pub struct RegionProps {
+  label : Int
+  area : Int
+  centroid : (Double, Double)
+  bbox : (Int, Int, Int, Int)
+}
 
 // Type aliases
 

@@ -6,19 +6,29 @@ import {
 }
 
 // Values
-pub fn adjust_brightness(@src.Image, Int) -> @src.Image
+pub fn adjust_brightness(@src.Image, Double) -> @src.Image
 
 pub fn adjust_contrast(@src.Image, Double) -> @src.Image
 
 pub fn adjust_gamma(@src.Image, Double) -> @src.Image
 
+pub fn affine_transform(@src.Image, Array[Double], Int, Int, @src.Interp, mode? : @src.BorderMode) -> @src.Image
+
 pub fn auto_contrast(@src.Image, Int) -> @src.Image
+
+pub fn bilateral_filter(@src.Image, Int, Double, Double) -> @src.Image
 
 pub fn black_hat(@src.Image, @src.Kernel) -> @src.Image
 
 pub fn box_blur(@src.Image, Int) -> @src.Image
 
+pub fn canny(@src.Image, Double, Double) -> @src.Image
+
+pub fn connected_components(@src.Image, Int) -> (Array[Array[Int]], Int)
+
 pub fn convolve(@src.Image, Array[Array[Double]], Bool) -> @src.Image
+
+pub fn corner_harris(@src.Image, Int, Int, Double) -> Array[Array[Double]]
 
 pub fn crop(@src.Image, Int, Int, Int, Int) -> @src.Image raise @src.ImageError
 
@@ -52,11 +62,17 @@ pub fn histogram(@src.Image) -> Array[Int]
 
 pub fn histogram_color(@src.Image) -> Array[Array[Int]]
 
+pub fn hog(@src.Image, Int, Int, Int) -> Array[Double]
+
+pub fn hu_moments(@src.Image) -> Array[Double]
+
 pub fn info(@src.Image) -> String
 
 pub fn invert(@src.Image) -> @src.Image
 
 pub fn laplacian(@src.Image) -> @src.Image
+
+pub fn lbp(@src.Image, Int, Int) -> Array[Int]
 
 pub fn max_filter(@src.Image, Int) -> @src.Image
 
@@ -65,6 +81,8 @@ pub fn median_filter(@src.Image, Int) -> @src.Image
 pub fn merge_channels(Array[Byte], Array[Byte], Array[Byte], Array[Byte]?) -> @src.Image raise @src.ImageError
 
 pub fn min_filter(@src.Image, Int) -> @src.Image
+
+pub fn moments(@src.Image) -> Array[Double]
 
 pub fn morph_close(@src.Image, @src.Kernel) -> @src.Image
 
@@ -84,6 +102,10 @@ pub fn prewitt(@src.Image) -> @src.Image
 
 pub fn psnr(@src.Image, @src.Image) -> Double
 
+pub fn random_noise_gaussian(@src.Image, Double) -> @src.Image
+
+pub fn random_noise_salt_pepper(@src.Image, Double) -> @src.Image
+
 pub fn register_encoder(String, &@src.Encoder) -> Unit
 
 pub fn rescale(@src.Image, Double, @src.Interp) -> @src.Image
@@ -100,6 +122,8 @@ pub fn rotate_270(@src.Image) -> @src.Image
 
 pub fn rotate_90(@src.Image) -> @src.Image
 
+pub fn rotate_any(@src.Image, Double, @src.Interp) -> @src.Image
+
 pub fn scharr(@src.Image) -> @src.Image
 
 pub fn sharpen(@src.Image, Double) -> @src.Image
@@ -110,11 +134,15 @@ pub fn sobel_x(@src.Image) -> Array[Array[Float]]
 
 pub fn sobel_y(@src.Image) -> Array[Array[Float]]
 
+pub fn ssim(@src.Image, @src.Image) -> Double
+
 pub fn threshold(@src.Image, Byte) -> @src.Image
 
 pub fn threshold_inv(@src.Image, Byte) -> @src.Image
 
 pub fn threshold_otsu(@src.Image) -> (Byte, @src.Image)
+
+pub fn threshold_sauvola(@src.Image, Int, Double) -> @src.Image
 
 pub fn to_bgr(@src.Image) -> @src.Image
 
@@ -128,6 +156,8 @@ pub fn to_ppm(@src.Image) -> Array[Byte]
 
 pub fn top_hat(@src.Image, @src.Kernel) -> @src.Image
 
+pub fn translate(@src.Image, Double, Double, @src.Interp) -> @src.Image
+
 pub fn unsharp_mask(@src.Image, Double, Double, Byte) -> @src.Image
 
 // Errors
@@ -135,6 +165,8 @@ pub fn unsharp_mask(@src.Image, Double, Double, Byte) -> @src.Image
 // Types and methods
 
 // Type aliases
+pub using @src {type BorderMode}
+
 pub using @src {type Image}
 
 pub using @src {type Interp}

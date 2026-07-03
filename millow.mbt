@@ -14,6 +14,9 @@ pub using @src {
   type PadMode,
   type ImageError,
   type PpmEncoder,
+  type Augmentation,
+  type RegionProps,
+  type BorderMode,
 
   // I/O traits
   trait Decoder,
@@ -27,7 +30,20 @@ pub using @src {
   tint,
   flatten_alpha,
   composite_over,
+  composite_color,
   merge_channels,
+  grayscale_to_rgb,
+  grayscale_to_rgba,
+  to_rgb,
+  to_rgba,
+  to_hsv,
+  from_hsv,
+  to_ycbcr,
+  from_ycbcr,
+
+  // Color LUT
+  apply_lut,
+  apply_lut_uniform,
 
   // Geometry
   crop,
@@ -36,6 +52,10 @@ pub using @src {
   rotate_90,
   rotate_180,
   rotate_270,
+  rotate_any,
+  affine_transform,
+  translate,
+  shear,
   resize,
   rescale,
   resize_to_fit,
@@ -49,6 +69,7 @@ pub using @src {
   adjust_contrast,
   adjust_gamma,
   normalize,
+  standardize,
   auto_contrast,
   sharpen,
   unsharp_mask,
@@ -57,9 +78,13 @@ pub using @src {
   threshold,
   threshold_inv,
   threshold_otsu,
+  threshold_sauvola,
   histogram,
   histogram_color,
   equalize_histogram,
+  clahe,
+  match_histogram,
+  histogram_correlation,
 
   // Filters
   convolve,
@@ -69,6 +94,7 @@ pub using @src {
   median_filter,
   min_filter,
   max_filter,
+  bilateral_filter,
 
   // Edges
   sobel,
@@ -77,6 +103,7 @@ pub using @src {
   scharr,
   prewitt,
   laplacian,
+  canny,
 
   // Morphology
   erode,
@@ -86,18 +113,54 @@ pub using @src {
   morph_gradient,
   top_hat,
   black_hat,
+  skeletonize,
+  hit_or_miss,
 
   // Drawing
   draw_pixel,
   draw_line,
   draw_rect,
   draw_circle,
+  draw_ellipse,
+  draw_polygon,
+  flood_fill,
+
+  // Feature detection
+  corner_harris,
+  corner_shi_tomasi,
+  hog,
+  lbp,
+  lbp_histogram,
+
+  // Measurement
+  connected_components,
+  find_contours,
+  regionprops,
+  count_nonzero,
+  count_pixels,
+  moments,
+  hu_moments,
+
+  // Data augmentation
+  random_crop,
+  random_flip_horizontal,
+  random_rotate,
+  random_brightness,
+  random_contrast,
+  random_gamma,
+  random_noise_gaussian,
+  random_noise_salt_pepper,
+  random_color_jitter,
+  augment_pipeline,
+  augment_random_choice,
+  process_batch,
 
   // Metrics & inspection
   info,
   equals,
   mse,
   psnr,
+  ssim,
 
   // Serialization & I/O registry
   to_ppm,

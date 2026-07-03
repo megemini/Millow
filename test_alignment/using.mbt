@@ -26,6 +26,10 @@ pub using @millow {
   rotate_90,
   rotate_180,
   rotate_270,
+  rotate_any,
+  affine_transform,
+  translate,
+  shear,
   resize,
   rescale,
   pad,
@@ -56,6 +60,7 @@ pub using @millow {
   median_filter,
   min_filter,
   max_filter,
+  bilateral_filter,
 
   // Edges
   sobel,
@@ -79,6 +84,22 @@ pub using @millow {
   draw_line,
   draw_rect,
   draw_circle,
+
+  // Feature detection
+  corner_harris,
+  corner_shi_tomasi,
+  hog,
+  lbp,
+  lbp_histogram,
+
+  // Measurement
+  connected_components,
+  find_contours,
+  regionprops,
+  count_nonzero,
+  count_pixels,
+  moments,
+  hu_moments,
 
   // Metrics & inspection
   info,

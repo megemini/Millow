@@ -9,6 +9,7 @@ pub using @millow {
   type Kernel,
   type PadMode,
   type PpmEncoder,
+  type BorderMode,
 
   // Channels & color
   to_grayscale,
@@ -24,6 +25,9 @@ pub using @millow {
   rotate_90,
   rotate_180,
   rotate_270,
+  rotate_any,
+  translate,
+  affine_transform,
   resize,
   rescale,
   resize_to_fit,
@@ -55,6 +59,7 @@ pub using @millow {
   median_filter,
   min_filter,
   max_filter,
+  bilateral_filter,
 
   // Edges
   sobel,
@@ -63,6 +68,7 @@ pub using @millow {
   scharr,
   prewitt,
   laplacian,
+  canny,
 
   // Morphology
   erode,
@@ -79,11 +85,29 @@ pub using @millow {
   draw_rect,
   draw_circle,
 
+  // Feature detection
+  lbp,
+  hog,
+  corner_harris,
+
+  // Measurement
+  connected_components,
+  moments,
+  hu_moments,
+
+  // Augmentation
+  random_noise_gaussian,
+  random_noise_salt_pepper,
+
+  // Thresholding
+  threshold_sauvola,
+
   // Metrics & inspection
   info,
   equals,
   mse,
   psnr,
+  ssim,
 
   // Serialization & I/O registry
   to_ppm,

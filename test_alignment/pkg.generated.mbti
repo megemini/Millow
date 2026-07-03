@@ -6,13 +6,17 @@ import {
 }
 
 // Values
-pub fn adjust_brightness(@src.Image, Int) -> @src.Image
+pub fn adjust_brightness(@src.Image, Double) -> @src.Image
 
 pub fn adjust_contrast(@src.Image, Double) -> @src.Image
 
 pub fn adjust_gamma(@src.Image, Double) -> @src.Image
 
+pub fn affine_transform(@src.Image, Array[Double], Int, Int, @src.Interp, mode? : @src.BorderMode) -> @src.Image
+
 pub fn auto_contrast(@src.Image, Int) -> @src.Image
+
+pub fn bilateral_filter(@src.Image, Int, Double, Double) -> @src.Image
 
 pub fn black_hat(@src.Image, @src.Kernel) -> @src.Image
 
@@ -26,7 +30,17 @@ pub fn clampi(Int, Int, Int) -> Int
 
 pub fn composite_over(@src.Image, @src.Image) -> @src.Image
 
+pub fn connected_components(@src.Image, Int) -> (Array[Array[Int]], Int)
+
 pub fn convolve(@src.Image, Array[Array[Double]], Bool) -> @src.Image
+
+pub fn corner_harris(@src.Image, Int, Int, Double) -> Array[Array[Double]]
+
+pub fn corner_shi_tomasi(@src.Image, Int, Int) -> Array[Array[Double]]
+
+pub fn count_nonzero(@src.Image) -> Int
+
+pub fn count_pixels(@src.Image, Byte) -> Int
 
 pub fn crop(@src.Image, Int, Int, Int, Int) -> @src.Image raise @src.ImageError
 
@@ -46,6 +60,8 @@ pub fn equals(@src.Image, @src.Image) -> Bool
 
 pub fn erode(@src.Image, @src.Kernel) -> @src.Image
 
+pub fn find_contours(@src.Image) -> Array[Array[(Int, Int)]]
+
 pub fn flatten_alpha(@src.Image, Byte, Byte, Byte) -> @src.Image
 
 pub fn flip_horizontal(@src.Image) -> @src.Image
@@ -60,11 +76,19 @@ pub fn histogram(@src.Image) -> Array[Int]
 
 pub fn histogram_color(@src.Image) -> Array[Array[Int]]
 
+pub fn hog(@src.Image, Int, Int, Int) -> Array[Double]
+
+pub fn hu_moments(@src.Image) -> Array[Double]
+
 pub fn info(@src.Image) -> String
 
 pub fn invert(@src.Image) -> @src.Image
 
 pub fn laplacian(@src.Image) -> @src.Image
+
+pub fn lbp(@src.Image, Int, Int) -> Array[Int]
+
+pub fn lbp_histogram(@src.Image, Int, Int) -> Array[Int]
 
 pub fn max_filter(@src.Image, Int) -> @src.Image
 
@@ -73,6 +97,8 @@ pub fn median_filter(@src.Image, Int) -> @src.Image
 pub fn merge_channels(Array[Byte], Array[Byte], Array[Byte], Array[Byte]?) -> @src.Image raise @src.ImageError
 
 pub fn min_filter(@src.Image, Int) -> @src.Image
+
+pub fn moments(@src.Image) -> Array[Double]
 
 pub fn morph_close(@src.Image, @src.Kernel) -> @src.Image
 
@@ -92,6 +118,8 @@ pub fn prewitt(@src.Image) -> @src.Image
 
 pub fn psnr(@src.Image, @src.Image) -> Double
 
+pub fn regionprops(Array[Array[Int]], Int) -> Array[@src.RegionProps]
+
 pub fn rescale(@src.Image, Double, @src.Interp) -> @src.Image
 
 pub fn resize(@src.Image, Int, Int, @src.Interp) -> @src.Image
@@ -102,11 +130,15 @@ pub fn rotate_270(@src.Image) -> @src.Image
 
 pub fn rotate_90(@src.Image) -> @src.Image
 
+pub fn rotate_any(@src.Image, Double, @src.Interp) -> @src.Image
+
 pub fn round_byte(Double) -> Byte
 
 pub fn scharr(@src.Image) -> @src.Image
 
 pub fn sharpen(@src.Image, Double) -> @src.Image
+
+pub fn shear(@src.Image, Double, Double, @src.Interp, mode? : @src.BorderMode) -> @src.Image
 
 pub fn sobel(@src.Image) -> @src.Image
 
@@ -133,6 +165,8 @@ pub fn to_pgm(@src.Image) -> Array[Byte]
 pub fn to_ppm(@src.Image) -> Array[Byte]
 
 pub fn top_hat(@src.Image, @src.Kernel) -> @src.Image
+
+pub fn translate(@src.Image, Double, Double, @src.Interp) -> @src.Image
 
 pub fn unsharp_mask(@src.Image, Double, Double, Byte) -> @src.Image
 
