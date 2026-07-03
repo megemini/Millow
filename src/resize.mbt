@@ -24,21 +24,15 @@ fn resize_bilinear(img : Image, dst_h : Int, dst_w : Int) -> Image {
   }
   let sh = img.h.to_double()
   let sw = img.w.to_double()
+  let dh = dst_h.to_double()
+  let dw = dst_w.to_double()
   for y = 0; y < dst_h; y = y + 1 {
-    let fy = clampd(
-      (y.to_double() + 0.5) * sh / dst_h.to_double() - 0.5,
-      0.0,
-      sh - 1.0,
-    )
+    let fy = clampd((y.to_double() + 0.5) * sh / dh - 0.5, 0.0, sh - 1.0)
     let y0 = @math.floor(fy).to_int()
     let y1 = clampi(y0 + 1, 0, img.h - 1)
     let wy = fy - y0.to_double()
     for x = 0; x < dst_w; x = x + 1 {
-      let fx = clampd(
-        (x.to_double() + 0.5) * sw / dst_w.to_double() - 0.5,
-        0.0,
-        sw - 1.0,
-      )
+      let fx = clampd((x.to_double() + 0.5) * sw / dw - 0.5, 0.0, sw - 1.0)
       let x0 = @math.floor(fx).to_int()
       let x1 = clampi(x0 + 1, 0, img.w - 1)
       let wx = fx - x0.to_double()

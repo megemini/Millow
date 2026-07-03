@@ -124,3 +124,107 @@ pub fn top_hat(img : Image, kernel : Kernel) -> Image {
 pub fn black_hat(img : Image, kernel : Kernel) -> Image {
   sub_img(morph_close(img, kernel), img)
 }
+
+///|
+/// Skeletonize via iterative thinning (Zhang-Suen). Works on binary images
+/// (non-zero pixels are foreground).
+pub fn skeletonize(img : Image) -> Image {
+  let mut cur = img.clone()
+  let mut changed = true
+  while changed {
+    changed = false
+    for pass = 0; pass < 2; pass = pass + 1 {
+      let next = cur.clone()
+      for y = 1; y < img.h - 1; y = y + 1 {
+        for x = 1; x < img.w - 1; x = x + 1 {
+          let o = cur.offset(y, x)
+          if cur.data[o] == 0 {
+            continue
+          }
+          // 8-neighbourhood: P2..P9 clockwise from top
+          let p2 = if cur.data[cur.offset(y - 1, x)] != 0 { 1 } else { 0 }
+          let p3 = if cur.data[cur.offset(y - 1, x + 1)] != 0 { 1 } else { 0 }
+          let p4 = if cur.data[cur.offset(y, x + 1)] != 0 { 1 } else { 0 }
+          let p5 = if cur.data[cur.offset(y + 1, x + 1)] != 0 { 1 } else { 0 }
+          let p6 = if cur.data[cur.offset(y + 1, x)] != 0 { 1 } else { 0 }
+          let p7 = if cur.data[cur.offset(y + 1, x - 1)] != 0 { 1 } else { 0 }
+          let p8 = if cur.data[cur.offset(y, x - 1)] != 0 { 1 } else { 0 }
+          let p9 = if cur.data[cur.offset(y - 1, x - 1)] != 0 { 1 } else { 0 }
+          let b = p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9
+          if b < 2 || b > 6 {
+            continue
+          }
+          // Transitions 0→1 in ordered sequence
+          let seq = [p2, p3, p4, p5, p6, p7, p8, p9, p2]
+          let mut a = 0
+          for i = 0; i < 8; i = i + 1 {
+            if seq[i] == 0 && seq[i + 1] == 1 {
+              a = a + 1
+            }
+          }
+          if a != 1 {
+            continue
+          }
+          let cond = if pass == 0 {
+            p2 * p4 * p6 == 0 && p4 * p6 * p8 == 0
+          } else {
+            p2 * p4 * p8 == 0 && p2 * p6 * p8 == 0
+          }
+          if cond {
+            let oo = next.offset(y, x)
+            next.data[oo] = 0
+            next.data[oo + 1] = 0
+            next.data[oo + 2] = 0
+            changed = true
+          }
+        }
+      }
+      cur = next
+    }
+  }
+  cur
+}
+
+///|
+/// Hit-or-miss transform. The kernel values are: 1 = foreground, 0 = background,
+/// -1 = don't care. Only pixels matching the pattern are kept.
+pub fn hit_or_miss(img : Image, kernel : Array[Array[Int]]) -> Image {
+  let kh = kernel.length()
+  let kw = kernel[0].length()
+  let cr = kh / 2
+  let cc = kw / 2
+  let out = Image::new(img.h, img.w)
+  for y = 0; y < img.h; y = y + 1 {
+    for x = 0; x < img.w; x = x + 1 {
+      let mut match_ = true
+      for ky = 0; ky < kh && match_; ky = ky + 1 {
+        for kx = 0; kx < kw && match_; kx = kx + 1 {
+          let k = kernel[ky][kx]
+          if k == -1 {
+            continue
+          }
+          let cy = y + ky - cr
+          let cx = x + kx - cc
+          let pixel_fg = if cy < 0 || cx < 0 || cy >= img.h || cx >= img.w {
+            false
+          } else {
+            img.data[img.offset(cy, cx)] != 0
+          }
+          if k == 1 && !pixel_fg {
+            match_ = false
+          }
+          if k == 0 && pixel_fg {
+            match_ = false
+          }
+        }
+      }
+      let o = out.offset(y, x)
+      let v : Byte = if match_ { 255 } else { 0 }
+      out.data[o] = v
+      out.data[o + 1] = v
+      out.data[o + 2] = v
+      out.data[o + 3] = 255
+    }
+  }
+  out
+}
