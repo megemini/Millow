@@ -4,6 +4,7 @@ target/
 target
 .mooncakes/
 .moonagent/
+demo_output/
 
 *.pyc
 

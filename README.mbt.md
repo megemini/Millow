@@ -1,8 +1,25 @@
-# millow
+# Millow
 
 A **zero-FFI, cross-platform image-processing library** for MoonBit. `millow`
 works entirely on in-memory RGBA8 buffers (`Array[Byte]`, laid out `H × W × 4`)
 and builds on every backend: `wasm-gc`, `wasm`, `js`, and `native`.
+
+## Demo
+
+Run `moon run cmd/main` to generate the following effects from
+`docs/images/lena_ai_generated.png`:
+
+| Input | `to_grayscale` | `tint(100,150,200)` | `gaussian_blur(σ=2)` |
+|:---:|:---:|:---:|:---:|
+| ![input](docs/images/lena_ai_generated.png) | ![grayscale](docs/images/demo_grayscale.jpg) | ![tint](docs/images/demo_tint.jpg) | ![blur](docs/images/demo_gaussian_blur.jpg) |
+
+| `sharpen(1.0)` | `sobel` | `equalize_histogram` | `threshold_otsu` |
+|:---:|:---:|:---:|:---:|
+| ![sharpen](docs/images/demo_sharpen.jpg) | ![sobel](docs/images/demo_sobel.jpg) | ![equalize](docs/images/demo_equalize_histogram.jpg) | ![otsu](docs/images/demo_threshold_otsu.jpg) |
+
+<!-- | `rotate_any(45°)` |
+|:---:|
+| ![rotate](docs/images/demo_rotate_45.jpg) | -->
 
 ## Features
 
