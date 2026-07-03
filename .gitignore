@@ -5,6 +5,8 @@ target
 .mooncakes/
 .moonagent/
 
+*.pyc
+
 # ide files
 .mimocode/
 .codeartsdoer/
