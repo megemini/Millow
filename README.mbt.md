@@ -17,9 +17,9 @@ Run `moon run cmd/main` to generate the following effects from
 |:---:|:---:|:---:|:---:|
 | ![sharpen](docs/images/demo_sharpen.jpg) | ![sobel](docs/images/demo_sobel.jpg) | ![equalize](docs/images/demo_equalize_histogram.jpg) | ![otsu](docs/images/demo_threshold_otsu.jpg) |
 
-<!-- | `rotate_any(45°)` |
-|:---:|
-| ![rotate](docs/images/demo_rotate_45.jpg) | -->
+| `rotate_any(45°)` | `find_contours` |
+|:---:|:---:|
+| ![rotate](docs/images/demo_rotate_45.jpg) | ![contours](docs/images/demo_contours.jpg) |
 
 ## Features
 

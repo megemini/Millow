@@ -82,7 +82,13 @@ pub fn get_pixel(
       let o = img.offset(cy, cx)
       (img.data[o], img.data[o + 1], img.data[o + 2], img.data[o + 3])
     }
-    Constant(r, g, b, a) => (r, g, b, a)
+    Constant(r, g, b, a) =>
+      if y >= 0 && y < img.h && x >= 0 && x < img.w {
+        let o = img.offset(y, x)
+        (img.data[o], img.data[o + 1], img.data[o + 2], img.data[o + 3])
+      } else {
+        (r, g, b, a)
+      }
   }
 }
 

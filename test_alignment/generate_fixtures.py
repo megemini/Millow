@@ -459,6 +459,38 @@ def _gaussian_kernel(ksize, sigma):
     return [v / s for v in k]
 
 
+def _gaussian_blur_2d(arr, sigma):
+    """Gaussian blur on 2D double array with zero border (matching millow)."""
+    h, w = arr.shape
+    radius = int(math.ceil(sigma * 3.0))
+    ks = clampi(radius * 2 + 1, 3, 99)
+    k = _gaussian_kernel(ks, sigma)
+    c = ks // 2
+    # Horizontal pass
+    temp = np.zeros((h, w), dtype=float)
+    for y in range(h):
+        for x in range(w):
+            acc = 0.0
+            for i in range(ks):
+                dx = i - c
+                cx = x + dx
+                v = arr[y, cx] if cx >= 0 and cx < w else 0.0
+                acc += k[i] * v
+            temp[y, x] = acc
+    # Vertical pass
+    out = np.zeros((h, w), dtype=float)
+    for y in range(h):
+        for x in range(w):
+            acc = 0.0
+            for i in range(ks):
+                dy = i - c
+                cy = y + dy
+                v = temp[cy, x] if cy >= 0 and cy < h else 0.0
+                acc += k[i] * v
+            out[y, x] = acc
+    return out
+
+
 def gaussian_blur(img, sigma):
     """Custom gaussian blur (3σ truncation)."""
     radius = int(math.ceil(sigma * 3.0))
@@ -916,24 +948,96 @@ def affine_transform(img, matrix, dst_h, dst_w):
 # ---------------------------------------------------------------------------
 
 def corner_harris(img, block_size, ksize, k):
-    """Corner detection using skimage."""
-    from skimage.feature import corner_harris
+    """Corner detection matching millow's implementation."""
     gray = to_grayscale(img)
-    gray_float = gray[..., :3].astype(np.float64) / 255.0
-    # Convert to grayscale by averaging RGB
-    gray_single = np.mean(gray_float, axis=-1)
-    result = corner_harris(gray_single, k=k, sigma=1)
-    return result.tolist()
+    h, w = img.shape[:2]
+    luma_arr = luma(gray[..., 0], gray[..., 1], gray[..., 2]).astype(float)
+
+    def luma_at(y, x):
+        if y < 0 or y >= h or x < 0 or x >= w:
+            return 0.0
+        return luma_arr[y, x]
+
+    gx = np.zeros((h, w), dtype=float)
+    gy = np.zeros((h, w), dtype=float)
+    sobel_x = [[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]]
+    sobel_y = [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]]
+    for y in range(h):
+        for x in range(w):
+            ax = 0.0
+            ay = 0.0
+            for ky in range(3):
+                for kx in range(3):
+                    v = luma_at(y + ky - 1, x + kx - 1)
+                    ax += sobel_x[ky][kx] * v
+                    ay += sobel_y[ky][kx] * v
+            gx[y, x] = ax
+            gy[y, x] = ay
+
+    gx2 = gx * gx
+    gy2 = gy * gy
+    gxy = gx * gy
+
+    sxx = _gaussian_blur_2d(gx2, 1.0)
+    syy = _gaussian_blur_2d(gy2, 1.0)
+    sxy = _gaussian_blur_2d(gxy, 1.0)
+
+    out = np.zeros((h, w), dtype=float)
+    for y in range(h):
+        for x in range(w):
+            det = sxx[y, x] * syy[y, x] - sxy[y, x] * sxy[y, x]
+            trace = sxx[y, x] + syy[y, x]
+            out[y, x] = det - k * trace * trace
+    return out.tolist()
 
 
 def corner_shi_tomasi(img, block_size, ksize):
-    """Corner detection using skimage."""
-    from skimage.feature import corner_shi_tomasi
+    """Corner detection matching millow's implementation."""
     gray = to_grayscale(img)
-    gray_float = gray[..., :3].astype(np.float64) / 255.0
-    gray_single = np.mean(gray_float, axis=-1)
-    result = corner_shi_tomasi(gray_single, sigma=1)
-    return result.tolist()
+    h, w = img.shape[:2]
+    luma_arr = luma(gray[..., 0], gray[..., 1], gray[..., 2]).astype(float)
+
+    def luma_at(y, x):
+        if y < 0 or y >= h or x < 0 or x >= w:
+            return 0.0
+        return luma_arr[y, x]
+
+    gx = np.zeros((h, w), dtype=float)
+    gy = np.zeros((h, w), dtype=float)
+    sobel_x = [[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]]
+    sobel_y = [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]]
+    for y in range(h):
+        for x in range(w):
+            ax = 0.0
+            ay = 0.0
+            for ky in range(3):
+                for kx in range(3):
+                    v = luma_at(y + ky - 1, x + kx - 1)
+                    ax += sobel_x[ky][kx] * v
+                    ay += sobel_y[ky][kx] * v
+            gx[y, x] = ax
+            gy[y, x] = ay
+
+    gx2 = gx * gx
+    gy2 = gy * gy
+    gxy = gx * gy
+
+    sxx = _gaussian_blur_2d(gx2, 1.0)
+    syy = _gaussian_blur_2d(gy2, 1.0)
+    sxy = _gaussian_blur_2d(gxy, 1.0)
+
+    out = np.zeros((h, w), dtype=float)
+    for y in range(h):
+        for x in range(w):
+            trace = sxx[y, x] + syy[y, x]
+            det = sxx[y, x] * syy[y, x] - sxy[y, x] * sxy[y, x]
+            disc = max(trace * trace - 4.0 * det, 0.0)
+            import math
+            disc = math.sqrt(disc)
+            l1 = (trace + disc) / 2.0
+            l2 = (trace - disc) / 2.0
+            out[y, x] = min(l1, l2)
+    return out.tolist()
 
 
 def hog(img, cell_size, block_size, nbins):

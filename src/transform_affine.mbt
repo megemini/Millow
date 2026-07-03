@@ -129,12 +129,18 @@ pub fn rotate_any(img : Image, angle : Double, interp : Interp) -> Image {
   }
   let dst_w = (x_max - x_min).ceil().to_int().max(1)
   let dst_h = (y_max - y_min).ceil().to_int().max(1)
-  let (t2_exp, t5_exp) = transform_pt(
-    -(dst_w.to_double() - w) / 2.0,
-    -(dst_h.to_double() - h) / 2.0,
-    matrix2,
-  )
-  let matrix3 = [matrix2[0], matrix2[1], t2_exp, matrix2[3], matrix2[4], t5_exp]
+  // Center the rotated image in the expanded canvas: the rotation center
+  // (w/2, h/2) should map to the canvas center (dst_w/2, dst_h/2).
+  let dx_expand = (dst_w.to_double() - w) / 2.0
+  let dy_expand = (dst_h.to_double() - h) / 2.0
+  let matrix3 = [
+    matrix2[0],
+    matrix2[1],
+    matrix2[2] + dx_expand,
+    matrix2[3],
+    matrix2[4],
+    matrix2[5] + dy_expand,
+  ]
   affine(img, matrix3, dst_h, dst_w, interp, Constant(0, 0, 0, 255))
 }
 

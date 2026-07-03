@@ -25,11 +25,15 @@ fn main {
   let ratio = 640.0 / full.w.to_double()
   let dst_h = (full.h.to_double() * ratio).to_int()
   let canvas = @millow.resize(full, dst_h, 640, @millow.Interp::Bilinear)
-  println("Loaded image: \{@millow.info(full)} -> resized to \{@millow.info(canvas)}")
+  println(
+    "Loaded image: \{@millow.info(full)} -> resized to \{@millow.info(canvas)}",
+  )
   println(" ")
 
   // Create output directory
-  @fs.create_dir("demo_output") catch { _ => () }
+  @fs.create_dir("demo_output") catch {
+    _ => ()
+  }
 
   // === Color operations ===
   let gray = @millow.to_grayscale(canvas)
@@ -123,11 +127,16 @@ fn main {
   println("20. flip_vertical - saved")
 
   let (oh, ow) = canvas.shape()
-  let resized = @millow.resize(canvas, ow / 2, oh / 2, @millow.Interp::Bilinear)
+  let resized = @millow.resize(canvas, oh / 2, ow / 2, @millow.Interp::Bilinear)
   save_jpg(resized, "demo_output/21_resize_half.jpg")
   println("21. resize(50%) - saved")
 
-  let translated = @millow.translate(canvas, 20.0, 20.0, @millow.Interp::Bilinear)
+  let translated = @millow.translate(
+    canvas,
+    20.0,
+    20.0,
+    @millow.Interp::Bilinear,
+  )
   save_jpg(translated, "demo_output/22_translate.jpg")
   println("22. translate(20,20) - saved")
   println(" ")
@@ -231,13 +240,16 @@ fn save_jpg(img : @millow.Image, filename : String) -> Unit {
 }
 
 ///|
-fn visualize_corners(img : @millow.Image, corners : Array[Array[Double]]) -> @millow.Image {
+fn visualize_corners(
+  img : @millow.Image,
+  corners : Array[Array[Double]],
+) -> @millow.Image {
   let mut result = img
   let threshold = 0.1
   for y = 0; y < corners.length(); y = y + 1 {
     for x = 0; x < corners[y].length(); x = x + 1 {
       if corners[y][x] > threshold {
-        result = @millow.draw_circle(result, x, y, 3, 255, 0, 0, 255, true, 1)
+        result = @millow.draw_circle(result, y, x, 3, 255, 0, 0, 255, true, 1)
       }
     }
   }
@@ -245,14 +257,31 @@ fn visualize_corners(img : @millow.Image, corners : Array[Array[Double]]) -> @mi
 }
 
 ///|
-fn draw_contours(img : @millow.Image, contours : Array[Array[(Int, Int)]]) -> @millow.Image {
+fn draw_contours(
+  img : @millow.Image,
+  contours : Array[Array[(Int, Int)]],
+) -> @millow.Image {
   let mut result = img
-  let colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255)]
+  let colors = [
+    (255, 0, 0),
+    (0, 255, 0),
+    (0, 0, 255),
+    (255, 255, 0),
+    (255, 0, 255),
+  ]
   for i = 0; i < contours.length(); i = i + 1 {
     let (r, g, b) = colors[i % colors.length()]
     for j = 0; j < contours[i].length(); j = j + 1 {
-      let (x, y) = contours[i][j]
-      result = @millow.draw_pixel(result, y, x, r.to_byte(), g.to_byte(), b.to_byte(), 255)
+      let (y, x) = contours[i][j]
+      result = @millow.draw_pixel(
+        result,
+        y,
+        x,
+        r.to_byte(),
+        g.to_byte(),
+        b.to_byte(),
+        255,
+      )
     }
   }
   result
