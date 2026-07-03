@@ -88,9 +88,9 @@ fn affine(
 }
 
 ///|
-/// Rotate by an arbitrary angle (degrees, counter-clockwise, matching Pillow).
+/// Rotate by an arbitrary angle (degrees, clockwise, matching Pillow).
 pub fn rotate_any(img : Image, angle : Double, interp : Interp) -> Image {
-  let rad = angle * @math.PI / 180.0
+  let rad = -angle * @math.PI / 180.0
   let cos_a = @math.cos(rad)
   let sin_a = @math.sin(rad)
   let w = img.w.to_double()

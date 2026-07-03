@@ -1,5 +1,5 @@
 // Resize alignment tests — nearest and bilinear interpolation.
-// TODO: 这些测试使用 numpy 拟合 millow 的实现方式生成测试数据
+// Reference: Pillow Image.resize
 
 ///|
 test "align resize Nearest 4x4 -> 8x8" {

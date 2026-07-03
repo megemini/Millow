@@ -1,5 +1,6 @@
 // Feature detection alignment tests — corner detection, HOG, LBP.
-// TODO: 这些测试使用 numpy 拟合 millow 的实现方式生成测试数据
+// corner_harris/corner_shi_tomasi: Reference: skimage.feature
+// hog/lbp: custom implementation (differs from skimage)
 
 ///|
 test "align corner_harris" {

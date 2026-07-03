@@ -1,5 +1,6 @@
 // Histogram alignment tests — histogram computation, equalization.
-// TODO: 这些测试使用 numpy 拟合 millow 的实现方式生成测试数据
+// histogram/histogram_color: custom BT.601 luma implementation
+// equalize_histogram: Reference: skimage.exposure.equalize_hist
 
 ///|
 test "align histogram" {

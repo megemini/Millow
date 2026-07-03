@@ -755,7 +755,7 @@ def bilateral_filter(img, d, sigma_color, sigma_space):
 # ---------------------------------------------------------------------------
 
 def _sample_bilinear_constant(img, fy, fx):
-    """Bilinear sample with constant border (0,0,0,0)."""
+    """Bilinear sample with constant border (0,0,0,255)."""
     h, w = img.shape[:2]
     y0 = int(math.floor(fy))
     x0 = int(math.floor(fx))
@@ -767,7 +767,7 @@ def _sample_bilinear_constant(img, fy, fx):
     def get_p(y, x):
         if 0 <= y < h and 0 <= x < w:
             return img[y, x]
-        return np.array([0, 0, 0, 0], dtype=np.uint8)
+        return np.array([0, 0, 0, 255], dtype=np.uint8)
     
     p00 = get_p(y0, x0)
     p01 = get_p(y0, x1)
@@ -788,36 +788,122 @@ def _sample_bilinear_constant(img, fy, fx):
 
 
 def rotate_any(img, angle_deg, interp):
-    """Rotate using Pillow (counter-clockwise, expand=True)."""
-    pil = numpy_to_pil(img)
-    resample = Image.BILINEAR if interp == "bilinear" else Image.NEAREST
-    rotated = pil.rotate(angle_deg, resample=resample, expand=True, fillcolor=(0, 0, 0, 255))
-    return pil_to_numpy(rotated)
+    """Rotate (clockwise, matching millow)."""
+    import math
+    h, w = img.shape[:2]
+    rad = -math.radians(angle_deg)
+    cos_a = math.cos(rad)
+    sin_a = math.sin(rad)
+    cx = w / 2.0
+    cy = h / 2.0
+    
+    def transform_pt(x, y, m):
+        return (m[0] * x + m[1] * y + m[2], m[3] * x + m[4] * y + m[5])
+    
+    matrix = [cos_a, sin_a, 0.0, -sin_a, cos_a, 0.0]
+    t2, t5 = transform_pt(-cx, -cy, matrix)
+    matrix2 = [matrix[0], matrix[1], t2 + cx, matrix[3], matrix[4], t5 + cy]
+    
+    corners = [(0.0, 0.0), (w, 0.0), (w, h), (0.0, h)]
+    x_min = x_max = y_min = y_max = None
+    for x, y in corners:
+        tx, ty = transform_pt(x, y, matrix2)
+        if x_min is None:
+            x_min = x_max = tx
+            y_min = y_max = ty
+        else:
+            x_min = min(x_min, tx)
+            x_max = max(x_max, tx)
+            y_min = min(y_min, ty)
+            y_max = max(y_max, ty)
+    
+    dst_w = int(math.ceil(x_max - x_min))
+    dst_h = int(math.ceil(y_max - y_min))
+    
+    t2_exp, t5_exp = transform_pt(-(dst_w - w) / 2.0, -(dst_h - h) / 2.0, matrix2)
+    matrix3 = [matrix2[0], matrix2[1], t2_exp, matrix2[3], matrix2[4], t5_exp]
+    
+    if interp == "nearest":
+        return _affine_transform_nearest(img, matrix3, dst_h, dst_w)
+    else:
+        return _affine_transform(img, matrix3, dst_h, dst_w)
 
 
-def _affine_transform(img, matrix, dst_h, dst_w):
-    """General affine transform (matching millow)."""
+def _affine_transform_nearest(img, matrix, dst_h, dst_w):
+    """General affine transform with nearest neighbor interpolation (matching millow)."""
     a, b, c, d, e, f = matrix
     det = a * e - b * d
     h, w = img.shape[:2]
     out = np.zeros((dst_h, dst_w, 4), dtype=np.uint8)
+    
     for y in range(dst_h):
         for x in range(dst_w):
             xp = float(x)
             yp = float(y)
             sx = (e * xp - b * yp + b * f - e * c) / det
             sy = (-d * xp + a * yp + d * c - a * f) / det
-            out[y, x] = _sample_bilinear_constant(img, sy, sx)
+            
+            if sx < 0.0 or sy < 0.0 or sx >= w or sy >= h:
+                out[y, x] = np.array([0, 0, 0, 255], dtype=np.uint8)
+            else:
+                si = int(sy)
+                sj = int(sx)
+                si = max(0, min(h - 1, si))
+                sj = max(0, min(w - 1, sj))
+                out[y, x] = img[si, sj]
+    
+    return out
+
+def _affine_transform(img, matrix, dst_h, dst_w):
+    """General affine transform with bilinear interpolation (matching millow)."""
+    a, b, c, d, e, f = matrix
+    det = a * e - b * d
+    h, w = img.shape[:2]
+    out = np.zeros((dst_h, dst_w, 4), dtype=np.uint8)
+    
+    def get_pixel_constant(y, x):
+        if 0 <= y < h and 0 <= x < w:
+            return img[y, x]
+        return np.array([0, 0, 0, 255], dtype=np.uint8)
+    
+    for y in range(dst_h):
+        for x in range(dst_w):
+            xp = float(x)
+            yp = float(y)
+            sx = (e * xp - b * yp + b * f - e * c) / det
+            sy = (-d * xp + a * yp + d * c - a * f) / det
+            
+            y0 = int(math.floor(sy))
+            x0 = int(math.floor(sx))
+            y1 = y0 + 1
+            x1 = x0 + 1
+            dy = sy - y0
+            dx = sx - x0
+            
+            p00 = get_pixel_constant(y0, x0)
+            p01 = get_pixel_constant(y0, x1)
+            p10 = get_pixel_constant(y1, x0)
+            p11 = get_pixel_constant(y1, x1)
+            
+            for channel in range(3):
+                v00 = float(p00[channel])
+                v01 = float(p01[channel])
+                v10 = float(p10[channel])
+                v11 = float(p11[channel])
+                val = v00 * (1.0 - dy) * (1.0 - dx) + v01 * (1.0 - dy) * dx + v10 * dy * (1.0 - dx) + v11 * dy * dx
+                out[y, x, channel] = round_byte(val)
+            out[y, x, 3] = p00[3]
+    
     return out
 
 
-def translate(img, dy, dx):
-    """Translate using Pillow."""
-    pil = numpy_to_pil(img)
-    # Pillow's transform with AFFINE
+def translate(img, dy, dx, interp="bilinear"):
+    """Translate (matching millow)."""
     matrix = [1.0, 0.0, -dx, 0.0, 1.0, -dy]
-    transformed = pil.transform((img.shape[1], img.shape[0]), Image.Transform.AFFINE, matrix, resample=Image.BILINEAR, fillcolor=(0, 0, 0, 255))
-    return pil_to_numpy(transformed)
+    if interp == "nearest":
+        return _affine_transform_nearest(img, matrix, img.shape[0], img.shape[1])
+    else:
+        return _affine_transform(img, matrix, img.shape[0], img.shape[1])
 
 
 def affine_transform(img, matrix, dst_h, dst_w):
@@ -1144,7 +1230,7 @@ def generate():
         "// ===== Affine transform =====",
         "",
         img_to_moonbit("exp_rotate_any_45", rotate_any(grad, 45.0, "bilinear")),
-        img_to_moonbit("exp_translate_1_1", translate(grad, 1.0, 1.0)),
+        img_to_moonbit("exp_translate_1_1", translate(grad, 1.0, 1.0, "bilinear")),
         "",
         "// ===== Feature detection =====",
         "",
