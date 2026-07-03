@@ -10,15 +10,21 @@ and builds on every backend: `wasm-gc`, `wasm`, `js`, and `native`.
   channel split/merge, and sub-images.
 - **Color** — grayscale (flat & weighted), invert, tint, BGR, alpha flatten,
   and `over` compositing.
-- **Geometry** — crop, flips, 90/180/270 rotation, resize (nearest / bilinear /
-  bicubic), rescale, fit/cover, thumbnails, and padding.
+- **Geometry** — crop, flips, 90/180/270 rotation, arbitrary rotation,
+  translation, affine transform, resize (nearest / bilinear / bicubic),
+  rescale, fit/cover, thumbnails, and padding.
 - **Enhancement** — brightness, contrast, gamma, normalize, auto-contrast,
   sharpen, and unsharp mask.
-- **Threshold & histogram** — fixed threshold, Otsu, histogram (gray & color),
-  and equalization.
-- **Filters & edges** — convolution, box/Gaussian blur, median/min/max, Sobel,
-  Scharr, Prewitt, and Laplacian.
+- **Threshold & histogram** — fixed threshold, Otsu, Sauvola, histogram
+  (gray & color), and equalization.
+- **Filters & edges** — convolution, box/Gaussian blur, median/min/max,
+  bilateral filter, Sobel, Scharr, Prewitt, Laplacian, and Canny.
 - **Morphology** — erode, dilate, open, close, gradient, top-hat, black-hat.
+- **Feature detection** — LBP, HOG, Harris corner detection.
+- **Measurement** — connected components, moments, Hu moments.
+- **Data augmentation** — random crop, flip, rotate, brightness/contrast/gamma
+  adjustment, Gaussian/salt-pepper noise, color jitter.
+- **Metrics** — MSE, PSNR, SSIM.
 - **Drawing** — pixels, lines, rectangles, and circles.
 - **I/O** — PPM/PGM serialization plus a pluggable `Encoder`/`Decoder` registry.
 
@@ -79,6 +85,66 @@ test "build, transform and inspect an image" {
 > In the examples above the API is called unqualified because they run inside
 > the `millow` package itself. From another module, prefix each name with the
 > import alias, e.g. `@millow.to_grayscale(img)`.
+
+## API notes
+
+### Brightness adjustment
+
+`adjust_brightness(img, factor)` uses a multiplicative factor:
+
+- `factor = 1.0` returns the original image
+- `factor = 0.0` returns a black image
+- Values greater than 1.0 brighten the image
+- Values less than 1.0 darken the image
+
+### Contrast adjustment
+
+`adjust_contrast(img, factor)` adjusts contrast relative to the image's average luma:
+
+- `factor = 1.0` returns the original image
+- `factor = 0.0` returns a solid gray image equal to the image's mean
+- Values greater than 1.0 increase contrast
+- Values less than 1.0 decrease contrast
+
+### Alpha compositing
+
+`flatten_alpha(img, r, g, b)` composites the image over a solid background color, using floating-point blending for smooth results.
+
+### Border handling
+
+Several operations support a `mode` parameter that controls how border pixels are handled:
+
+- `Replicate` — extends the nearest edge pixel outward
+- `Reflect` — mirrors pixels across the edge
+- `Wrap` — tiles the image periodically
+- `Constant(r, g, b, a)` — fills border regions with a constant color
+
+Functions supporting border modes include: `sobel`, `scharr`, `prewitt`, `laplacian`, `canny`, `lbp`, `bilateral_filter`, `affine_transform`, `rotate_any`, and `translate`.
+
+### Bilateral filter
+
+`bilateral_filter(img, d, sigma_color, sigma_space)` applies edge-preserving smoothing:
+
+- `d` is the diameter of the pixel neighborhood (use 0 to auto-compute based on sigma_space)
+- `sigma_color` controls how similar colors must be to influence each other (larger = more smoothing)
+- `sigma_space` controls how close pixels must be spatially to influence each other (larger = wider neighborhood)
+
+### Affine transform
+
+`affine_transform(img, matrix, dst_h, dst_w, interp, mode)` applies a general affine transformation using a 6-element matrix `[a, b, c, d, e, f]` representing:
+
+```
+x' = a*x + b*y + c
+y' = d*x + e*y + f
+```
+
+Use `rotate_any` and `translate` for common transformations.
+
+### Random noise
+
+`random_noise_gaussian(img, std)` adds Gaussian noise with the specified standard deviation.
+
+`random_noise_salt_pepper(img, amount)` adds salt-and-pepper noise with the specified amount (fraction of pixels affected).
 
 ## Backends
 
