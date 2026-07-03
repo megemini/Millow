@@ -1,6 +1,7 @@
 ///|
 /// Harris corner response map. Returns an `h × w` array of response values.
 /// `k` is the Harris parameter (typically 0.04–0.06).
+/// Uses Gaussian-weighted structure tensor (matching skimage).
 pub fn corner_harris(
   img : Image,
   block_size : Int,
@@ -8,35 +9,40 @@ pub fn corner_harris(
   k : Double,
 ) -> Array[Array[Double]] {
   let gray = to_grayscale(img)
-  let smoothed = gaussian_blur(gray, 1.0)
   let gx = grad_double(
-    smoothed,
+    gray,
     [[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]],
-    Reflect,
+    Constant(0, 0, 0, 0),
   )
   let gy = grad_double(
-    smoothed,
+    gray,
     [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]],
-    Reflect,
+    Constant(0, 0, 0, 0),
   )
-  let r = block_size / 2
+  let gx2 = Array::makei(img.h, fn(y) {
+    Array::make(img.w, gx[y][0] * gx[y][0])
+  })
+  let gy2 = Array::makei(img.h, fn(y) {
+    Array::make(img.w, gy[y][0] * gy[y][0])
+  })
+  let gxy = Array::makei(img.h, fn(y) {
+    Array::make(img.w, gx[y][0] * gy[y][0])
+  })
+  for y = 0; y < img.h; y = y + 1 {
+    for x = 0; x < img.w; x = x + 1 {
+      gx2[y][x] = gx[y][x] * gx[y][x]
+      gy2[y][x] = gy[y][x] * gy[y][x]
+      gxy[y][x] = gx[y][x] * gy[y][x]
+    }
+  }
+  let sxx = gaussian_blur_double(gx2, 1.0)
+  let syy = gaussian_blur_double(gy2, 1.0)
+  let sxy = gaussian_blur_double(gxy, 1.0)
   let out = Array::makei(img.h, fn(_i) { Array::make(img.w, 0.0) })
   for y = 0; y < img.h; y = y + 1 {
     for x = 0; x < img.w; x = x + 1 {
-      let mut sxx = 0.0
-      let mut syy = 0.0
-      let mut sxy = 0.0
-      for dy = -r; dy <= r; dy = dy + 1 {
-        for dx = -r; dx <= r; dx = dx + 1 {
-          let cy = clampi(y + dy, 0, img.h - 1)
-          let cx = clampi(x + dx, 0, img.w - 1)
-          sxx = sxx + gx[cy][cx] * gx[cy][cx]
-          syy = syy + gy[cy][cx] * gy[cy][cx]
-          sxy = sxy + gx[cy][cx] * gy[cy][cx]
-        }
-      }
-      let det = sxx * syy - sxy * sxy
-      let trace = sxx + syy
+      let det = sxx[y][x] * syy[y][x] - sxy[y][x] * sxy[y][x]
+      let trace = sxx[y][x] + syy[y][x]
       out[y][x] = det - k * trace * trace
     }
   }
@@ -45,41 +51,47 @@ pub fn corner_harris(
 
 ///|
 /// Shi-Tomasi corner response (minimum eigenvalue of the structure tensor).
+/// Uses Gaussian-weighted structure tensor (matching skimage).
 pub fn corner_shi_tomasi(
   img : Image,
   block_size : Int,
   _ksize : Int,
 ) -> Array[Array[Double]] {
   let gray = to_grayscale(img)
-  let smoothed = gaussian_blur(gray, 1.0)
   let gx = grad_double(
-    smoothed,
+    gray,
     [[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]],
-    Reflect,
+    Constant(0, 0, 0, 0),
   )
   let gy = grad_double(
-    smoothed,
+    gray,
     [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]],
-    Reflect,
+    Constant(0, 0, 0, 0),
   )
-  let r = block_size / 2
+  let gx2 = Array::makei(img.h, fn(y) {
+    Array::make(img.w, gx[y][0] * gx[y][0])
+  })
+  let gy2 = Array::makei(img.h, fn(y) {
+    Array::make(img.w, gy[y][0] * gy[y][0])
+  })
+  let gxy = Array::makei(img.h, fn(y) {
+    Array::make(img.w, gx[y][0] * gy[y][0])
+  })
+  for y = 0; y < img.h; y = y + 1 {
+    for x = 0; x < img.w; x = x + 1 {
+      gx2[y][x] = gx[y][x] * gx[y][x]
+      gy2[y][x] = gy[y][x] * gy[y][x]
+      gxy[y][x] = gx[y][x] * gy[y][x]
+    }
+  }
+  let sxx = gaussian_blur_double(gx2, 1.0)
+  let syy = gaussian_blur_double(gy2, 1.0)
+  let sxy = gaussian_blur_double(gxy, 1.0)
   let out = Array::makei(img.h, fn(_i) { Array::make(img.w, 0.0) })
   for y = 0; y < img.h; y = y + 1 {
     for x = 0; x < img.w; x = x + 1 {
-      let mut sxx = 0.0
-      let mut syy = 0.0
-      let mut sxy = 0.0
-      for dy = -r; dy <= r; dy = dy + 1 {
-        for dx = -r; dx <= r; dx = dx + 1 {
-          let cy = clampi(y + dy, 0, img.h - 1)
-          let cx = clampi(x + dx, 0, img.w - 1)
-          sxx = sxx + gx[cy][cx] * gx[cy][cx]
-          syy = syy + gy[cy][cx] * gy[cy][cx]
-          sxy = sxy + gx[cy][cx] * gy[cy][cx]
-        }
-      }
-      let trace = sxx + syy
-      let det = sxx * syy - sxy * sxy
+      let trace = sxx[y][x] + syy[y][x]
+      let det = sxx[y][x] * syy[y][x] - sxy[y][x] * sxy[y][x]
       let disc = (trace * trace - 4.0 * det).max(0.0).sqrt()
       let l1 = (trace + disc) / 2.0
       let l2 = (trace - disc) / 2.0

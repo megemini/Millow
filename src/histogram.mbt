@@ -59,9 +59,7 @@ pub fn equalize_histogram(img : Image) -> Image {
       cdf[i] = acc.to_double() / total.to_double()
     }
     // Map using normalized CDF
-    let lut = Array::makei(256, fn(i) {
-      round_byte(cdf[i] * 255.0)
-    })
+    let lut = Array::makei(256, fn(i) { round_byte(cdf[i] * 255.0) })
     for i = 0; i < total; i = i + 1 {
       let v = img.data[i * 4 + c].to_int()
       out.data[i * 4 + c] = lut[v]

@@ -710,12 +710,12 @@ def erode(img, kernel):
 def bilateral_filter(img, d, sigma_color, sigma_space):
     """Bilateral filter (matching millow)."""
     h, w = img.shape[:2]
-    r_f = max(5, 2 * int(math.ceil(3.0 * sigma_space)) + 1) / 2.0 if d <= 0 else d / 2.0
-    r = int(r_f)
+    win_size = max(5, 2 * int(math.ceil(3.0 * sigma_space)) + 1) if d <= 0 else d
+    r = win_size // 2
     out = np.zeros_like(img)
-    sc_norm = sigma_color / 255.0
-    sc2 = 2.0 * sc_norm * sc_norm
+    sc2 = 2.0 * sigma_color * sigma_color
     ss2 = 2.0 * sigma_space * sigma_space
+
     for y in range(h):
         for x in range(w):
             center_r = float(img[y, x, 0]) / 255.0
@@ -788,35 +788,11 @@ def _sample_bilinear_constant(img, fy, fx):
 
 
 def rotate_any(img, angle_deg, interp):
-    """Rotate (matching millow - clockwise)."""
-    rad = -angle_deg * math.pi / 180.0
-    cos_a = math.cos(rad)
-    sin_a = math.sin(rad)
-    h, w = img.shape[:2]
-    ch = h / 2.0
-    cw = w / 2.0
-    corners = [(-cw, -ch), (cw - 1.0, -ch), (-cw, ch - 1.0), (cw - 1.0, ch - 1.0)]
-    x_min = x_max = y_min = y_max = 0.0
-    for i, (x, y) in enumerate(corners):
-        rx = x * cos_a - y * sin_a
-        ry = x * sin_a + y * cos_a
-        if i == 0:
-            x_min = x_max = rx
-            y_min = y_max = ry
-        else:
-            x_min = min(x_min, rx)
-            x_max = max(x_max, rx)
-            y_min = min(y_min, ry)
-            y_max = max(y_max, ry)
-    dst_w = max(1, int(math.ceil(x_max - x_min + 1.0)))
-    dst_h = max(1, int(math.ceil(y_max - y_min + 1.0)))
-    dst_ch = dst_h / 2.0
-    dst_cw = dst_w / 2.0
-    matrix = [
-        cos_a, sin_a, cw - dst_cw * cos_a - dst_ch * sin_a,
-        -sin_a, cos_a, ch + dst_cw * sin_a - dst_ch * cos_a,
-    ]
-    return _affine_transform(img, matrix, dst_h, dst_w)
+    """Rotate using Pillow (counter-clockwise, expand=True)."""
+    pil = numpy_to_pil(img)
+    resample = Image.BILINEAR if interp == "bilinear" else Image.NEAREST
+    rotated = pil.rotate(angle_deg, resample=resample, expand=True, fillcolor=(0, 0, 0, 255))
+    return pil_to_numpy(rotated)
 
 
 def _affine_transform(img, matrix, dst_h, dst_w):
@@ -836,10 +812,12 @@ def _affine_transform(img, matrix, dst_h, dst_w):
 
 
 def translate(img, dy, dx):
-    """Translate (matching millow)."""
-    h, w = img.shape[:2]
+    """Translate using Pillow."""
+    pil = numpy_to_pil(img)
+    # Pillow's transform with AFFINE
     matrix = [1.0, 0.0, -dx, 0.0, 1.0, -dy]
-    return _affine_transform(img, matrix, h, w)
+    transformed = pil.transform((img.shape[1], img.shape[0]), Image.Transform.AFFINE, matrix, resample=Image.BILINEAR, fillcolor=(0, 0, 0, 255))
+    return pil_to_numpy(transformed)
 
 
 def affine_transform(img, matrix, dst_h, dst_w):
@@ -852,56 +830,24 @@ def affine_transform(img, matrix, dst_h, dst_w):
 # ---------------------------------------------------------------------------
 
 def corner_harris(img, block_size, ksize, k):
-    """Corner detection (matching millow)."""
-    h, w = img.shape[:2]
+    """Corner detection using skimage."""
+    from skimage.feature import corner_harris
     gray = to_grayscale(img)
-    smoothed = gaussian_blur(gray, 1.0)
-    gx = _grad(smoothed, [[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]])
-    gy = _grad(smoothed, [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]])
-    r = block_size // 2
-    out = [[0.0 for _ in range(w)] for _ in range(h)]
-    for y in range(h):
-        for x in range(w):
-            sxx = syy = sxy = 0.0
-            for dy in range(-r, r + 1):
-                for dx in range(-r, r + 1):
-                    cy = clampi(y + dy, 0, h - 1)
-                    cx = clampi(x + dx, 0, w - 1)
-                    sxx += gx[cy][cx] * gx[cy][cx]
-                    syy += gy[cy][cx] * gy[cy][cx]
-                    sxy += gx[cy][cx] * gy[cy][cx]
-            det = sxx * syy - sxy * sxy
-            trace = sxx + syy
-            out[y][x] = det - k * trace * trace
-    return out
+    gray_float = gray[..., :3].astype(np.float64) / 255.0
+    # Convert to grayscale by averaging RGB
+    gray_single = np.mean(gray_float, axis=-1)
+    result = corner_harris(gray_single, k=k, sigma=1)
+    return result.tolist()
 
 
 def corner_shi_tomasi(img, block_size, ksize):
-    """Corner detection (matching millow)."""
-    h, w = img.shape[:2]
+    """Corner detection using skimage."""
+    from skimage.feature import corner_shi_tomasi
     gray = to_grayscale(img)
-    smoothed = gaussian_blur(gray, 1.0)
-    gx = _grad(smoothed, [[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]])
-    gy = _grad(smoothed, [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]])
-    r = block_size // 2
-    out = [[0.0 for _ in range(w)] for _ in range(h)]
-    for y in range(h):
-        for x in range(w):
-            sxx = syy = sxy = 0.0
-            for dy in range(-r, r + 1):
-                for dx in range(-r, r + 1):
-                    cy = clampi(y + dy, 0, h - 1)
-                    cx = clampi(x + dx, 0, w - 1)
-                    sxx += gx[cy][cx] * gx[cy][cx]
-                    syy += gy[cy][cx] * gy[cy][cx]
-                    sxy += gx[cy][cx] * gy[cy][cx]
-            trace = sxx + syy
-            det = sxx * syy - sxy * sxy
-            disc = math.sqrt(max(0.0, trace * trace - 4.0 * det))
-            l1 = (trace + disc) / 2.0
-            l2 = (trace - disc) / 2.0
-            out[y][x] = min(l1, l2)
-    return out
+    gray_float = gray[..., :3].astype(np.float64) / 255.0
+    gray_single = np.mean(gray_float, axis=-1)
+    result = corner_shi_tomasi(gray_single, sigma=1)
+    return result.tolist()
 
 
 def hog(img, cell_size, block_size, nbins):
@@ -1193,7 +1139,7 @@ def generate():
         "",
         "// ===== Bilateral filter =====",
         "",
-        img_to_moonbit("exp_bilateral_5_10_10", bilateral_filter(grad, 5, 10.0, 10.0)),
+        img_to_moonbit("exp_bilateral_5_01_10", bilateral_filter(grad, 5, 0.1, 10.0)),
         "",
         "// ===== Affine transform =====",
         "",

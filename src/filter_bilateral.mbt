@@ -1,24 +1,24 @@
 ///|
 /// Bilateral filter: edge-preserving denoising.
-/// `d` is the neighbourhood diameter (if None, computed as max(5, 2*ceil(3*sigma_spatial)+1)).
-/// `sigma_color` controls tonal weight (in [0, 255] range, normalized internally).
+/// `d` is the neighbourhood diameter (if <= 0, computed as max(5, 2*ceil(3*sigma_spatial)+1)).
+/// `sigma_color` controls tonal weight (in [0, 1] range, matching skimage).
 /// `sigma_space` controls spatial weight.
+/// Uses reflect boundary mode.
 pub fn bilateral_filter(
   img : Image,
   d : Int,
   sigma_color : Double,
   sigma_space : Double,
 ) -> Image {
-  let r_f = if d <= 0 {
-    let win_size = (2 * (3.0 * sigma_space).ceil().to_int() + 1).max(5)
-    win_size.to_double() / 2.0
+  let win_size = if d <= 0 {
+    (2 * (3.0 * sigma_space).ceil().to_int() + 1).max(5)
   } else {
-    d.to_double() / 2.0
+    d
   }
-  let r = r_f.to_int()
+  let r = win_size / 2
   let out = Image::new(img.h, img.w)
-  let sc_norm = sigma_color / 255.0
-  let sc2 = 2.0 * sc_norm * sc_norm
+  // sigma_color is in [0, 1] range (matching skimage)
+  let sc2 = 2.0 * sigma_color * sigma_color
   let ss2 = 2.0 * sigma_space * sigma_space
   for y = 0; y < img.h; y = y + 1 {
     for x = 0; x < img.w; x = x + 1 {

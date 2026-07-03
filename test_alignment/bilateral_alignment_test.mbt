@@ -5,8 +5,8 @@
 test "align bilateral_filter" {
   let img = img_from_ints(4, 4, in_grad_4x4)
   assert_img_close(
-    bilateral_filter(img, 5, 10.0, 10.0),
-    exp_bilateral_5_10_10,
-    20,
+    bilateral_filter(img, 5, 0.1, 10.0),
+    exp_bilateral_5_01_10,
+    2,
   )
 }

@@ -88,52 +88,54 @@ fn affine(
 }
 
 ///|
-/// Rotate by an arbitrary angle (degrees, clockwise).
+/// Rotate by an arbitrary angle (degrees, counter-clockwise, matching Pillow).
 pub fn rotate_any(img : Image, angle : Double, interp : Interp) -> Image {
-  let rad = -angle * @math.PI / 180.0
+  let rad = angle * @math.PI / 180.0
   let cos_a = @math.cos(rad)
   let sin_a = @math.sin(rad)
-  let ch = img.h.to_double() / 2.0
-  let cw = img.w.to_double() / 2.0
-  let corners = [
-    (-cw, -ch),
-    (cw - 1.0, -ch),
-    (-cw, ch - 1.0),
-    (cw - 1.0, ch - 1.0),
-  ]
+  let w = img.w.to_double()
+  let h = img.h.to_double()
+  let cx = w / 2.0
+  let cy = h / 2.0
+  let matrix = [cos_a, sin_a, 0.0, -sin_a, cos_a, 0.0]
+  let transform_pt = fn(
+    x : Double,
+    y : Double,
+    m : Array[Double],
+  ) -> (Double, Double) {
+    (m[0] * x + m[1] * y + m[2], m[3] * x + m[4] * y + m[5])
+  }
+  let (t2, t5) = transform_pt(-cx, -cy, matrix)
+  let matrix2 = [matrix[0], matrix[1], t2 + cx, matrix[3], matrix[4], t5 + cy]
+  let corners = [(0.0, 0.0), (w, 0.0), (w, h), (0.0, h)]
   let mut x_min = 0.0
   let mut x_max = 0.0
   let mut y_min = 0.0
   let mut y_max = 0.0
   for i = 0; i < 4; i = i + 1 {
     let (x, y) = corners[i]
-    let rx = x * cos_a - y * sin_a
-    let ry = x * sin_a + y * cos_a
+    let (tx, ty) = transform_pt(x, y, matrix2)
     if i == 0 {
-      x_min = rx
-      x_max = rx
-      y_min = ry
-      y_max = ry
+      x_min = tx
+      x_max = tx
+      y_min = ty
+      y_max = ty
     } else {
-      x_min = x_min.min(rx)
-      x_max = x_max.max(rx)
-      y_min = y_min.min(ry)
-      y_max = y_max.max(ry)
+      x_min = x_min.min(tx)
+      x_max = x_max.max(tx)
+      y_min = y_min.min(ty)
+      y_max = y_max.max(ty)
     }
   }
-  let dst_w = (x_max - x_min + 1.0).ceil().to_int().max(1)
-  let dst_h = (y_max - y_min + 1.0).ceil().to_int().max(1)
-  let dst_ch = dst_h.to_double() / 2.0
-  let dst_cw = dst_w.to_double() / 2.0
-  let matrix = [
-    cos_a,
-    sin_a,
-    cw - dst_cw * cos_a - dst_ch * sin_a,
-    -sin_a,
-    cos_a,
-    ch + dst_cw * sin_a - dst_ch * cos_a,
-  ]
-  affine(img, matrix, dst_h, dst_w, interp, Constant(0, 0, 0, 0))
+  let dst_w = (x_max - x_min).ceil().to_int().max(1)
+  let dst_h = (y_max - y_min).ceil().to_int().max(1)
+  let (t2_exp, t5_exp) = transform_pt(
+    -(dst_w.to_double() - w) / 2.0,
+    -(dst_h.to_double() - h) / 2.0,
+    matrix2,
+  )
+  let matrix3 = [matrix2[0], matrix2[1], t2_exp, matrix2[3], matrix2[4], t5_exp]
+  affine(img, matrix3, dst_h, dst_w, interp, Constant(0, 0, 0, 255))
 }
 
 ///|
@@ -153,7 +155,7 @@ pub fn affine_transform(
 }
 
 ///|
-/// Translate the image by `(dy, dx)` pixels.
+/// Translate the image by `(dy, dx)` pixels (matching Pillow).
 pub fn translate(
   img : Image,
   dy : Double,
@@ -161,7 +163,7 @@ pub fn translate(
   interp : Interp,
 ) -> Image {
   let matrix = [1.0, 0.0, -dx, 0.0, 1.0, -dy]
-  affine(img, matrix, img.h, img.w, interp, Constant(0, 0, 0, 0))
+  affine(img, matrix, img.h, img.w, interp, Constant(0, 0, 0, 255))
 }
 
 ///|

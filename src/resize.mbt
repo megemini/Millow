@@ -33,11 +33,7 @@ fn precompute_bilinear_weights(
   dst_size : Int,
 ) -> Array[(Array[Double], Int, Int)] {
   let scale = src_size.to_double() / dst_size.to_double()
-  let support = if scale < 1.0 {
-    1.0
-  } else {
-    scale
-  }
+  let support = if scale < 1.0 { 1.0 } else { scale }
   let inv_fs = 1.0 / support
   let result = Array::make(dst_size, ([], 0, 0))
   for i = 0; i < dst_size; i = i + 1 {

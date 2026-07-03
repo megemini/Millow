@@ -80,21 +80,13 @@ fn mag_image(gx : Array[Array[Float]], gy : Array[Array[Float]]) -> Image {
 ///|
 /// Sobel horizontal gradient (per-pixel response).
 pub fn sobel_x(img : Image) -> Array[Array[Float]] {
-  grad(
-    img,
-    [[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]],
-    Reflect,
-  )
+  grad(img, [[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]], Reflect)
 }
 
 ///|
 /// Sobel vertical gradient (per-pixel response).
 pub fn sobel_y(img : Image) -> Array[Array[Float]] {
-  grad(
-    img,
-    [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]],
-    Reflect,
-  )
+  grad(img, [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]], Reflect)
 }
 
 ///|

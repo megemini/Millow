@@ -106,3 +106,44 @@ pub fn gaussian_blur(img : Image, sigma : Double) -> Image {
   let ks = clampi(radius * 2 + 1, 3, 99)
   gaussian_blur_kernel(img, ks, sigma)
 }
+
+///|
+/// Gaussian blur for double arrays (used for structure tensor smoothing).
+pub fn gaussian_blur_double(
+  arr : Array[Array[Double]],
+  sigma : Double,
+) -> Array[Array[Double]] {
+  let h = arr.length()
+  let w = arr[0].length()
+  let radius = @math.ceil(sigma * 3.0).to_int()
+  let ks = clampi(radius * 2 + 1, 3, 99)
+  let k = gaussian_kernel(ks, sigma)
+  let c = ks / 2
+  let temp = Array::makei(h, fn(_i) { Array::make(w, 0.0) })
+  for y = 0; y < h; y = y + 1 {
+    for x = 0; x < w; x = x + 1 {
+      let mut acc = 0.0
+      for i = 0; i < ks; i = i + 1 {
+        let dx = i - c
+        let cx = x + dx
+        let v = if cx >= 0 && cx < w { arr[y][cx] } else { 0.0 }
+        acc = acc + k[i] * v
+      }
+      temp[y][x] = acc
+    }
+  }
+  let out = Array::makei(h, fn(_i) { Array::make(w, 0.0) })
+  for y = 0; y < h; y = y + 1 {
+    for x = 0; x < w; x = x + 1 {
+      let mut acc = 0.0
+      for i = 0; i < ks; i = i + 1 {
+        let dy = i - c
+        let cy = y + dy
+        let v = if cy >= 0 && cy < h { temp[cy][x] } else { 0.0 }
+        acc = acc + k[i] * v
+      }
+      out[y][x] = acc
+    }
+  }
+  out
+}
