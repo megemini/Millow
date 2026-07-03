@@ -2,9 +2,9 @@
 // gamma use floating point, tolerance 1 for rounding edges.
 
 ///|
-test "align adjust_brightness +50" {
+test "align adjust_brightness x1.5" {
   let img = img_from_ints(4, 4, in_grad_4x4)
-  assert_img_eq(adjust_brightness(img, 50), exp_brightness_50)
+  assert_img_close(adjust_brightness(img, 1.5), exp_brightness_1_5, 1)
 }
 
 ///|

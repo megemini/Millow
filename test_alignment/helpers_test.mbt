@@ -60,3 +60,20 @@ fn assert_arr2_close(
     }
   }
 }
+
+///|
+/// Compare an `Array[Array[Double]]` (e.g. corner detection) with tolerance.
+fn assert_arr2_close_double(
+  actual : Array[Array[Double]],
+  expected : Array[Array[Double]],
+  tol : Double,
+) -> Unit raise {
+  assert_eq(actual.length(), expected.length())
+  for y = 0; y < actual.length(); y = y + 1 {
+    assert_eq(actual[y].length(), expected[y].length())
+    for x = 0; x < actual[y].length(); x = x + 1 {
+      let d = (actual[y][x] - expected[y][x]).abs()
+      assert_true(d <= tol)
+    }
+  }
+}

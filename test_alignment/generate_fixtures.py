@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Generate MoonBit fixture data for the millow alignment test suite.
 
-This script builds small test images, runs reference implementations that
-match millow's exact algorithms (using numpy / skimage / Pillow where they
-agree), and writes the input + expected-output byte arrays to
-``fixtures.mbt`` as ``Array[Int]`` literals.
+This script builds small test images, runs reference implementations using
+numpy to match millow's exact implementation, and writes the input + expected-output
+byte arrays to ``fixtures_test.mbt`` as ``Array[Int]`` literals.
 
 Usage:
     source /home/shun/venv310/bin/activate
@@ -20,14 +19,17 @@ import math
 from pathlib import Path
 
 import numpy as np
+from PIL import Image, ImageOps, ImageEnhance, ImageFilter
+import skimage
+from skimage import filters, exposure, morphology, feature, measure
+from skimage.util import img_as_ubyte, img_as_float
 
-# ---------------------------------------------------------------------------
-# Rounding helpers — must match MoonBit's @math.round (half away from zero)
-# ---------------------------------------------------------------------------
 
-def moon_round(x: float | np.ndarray) -> np.ndarray:
+def moon_round(x):
     """Round half away from zero, matching MoonBit @math.round."""
-    return np.sign(x) * np.floor(np.abs(x) + 0.5)
+    if isinstance(x, np.ndarray):
+        return np.sign(x) * np.floor(np.abs(x) + 0.5)
+    return int(math.copysign(math.floor(abs(x) + 0.5), x))
 
 
 def round_byte(x):
@@ -35,24 +37,12 @@ def round_byte(x):
     r = moon_round(x)
     if isinstance(r, np.ndarray):
         return np.clip(r.astype(int), 0, 255)
-    return int(np.clip(int(r), 0, 255))
+    return int(max(0, min(255, int(r))))
 
 
 def clampi(v: int, lo: int, hi: int) -> int:
-    if v < lo:
-        return lo
-    if v > hi:
-        return hi
-    return v
-
-
-def clampd(v: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, v))
 
-
-# ---------------------------------------------------------------------------
-# Image representation: H x W x 4 uint8 RGBA, row-major (matches millow)
-# ---------------------------------------------------------------------------
 
 def rgba(h: int, w: int, r: int, g: int, b: int, a: int = 255) -> np.ndarray:
     """Solid color image."""
@@ -76,7 +66,7 @@ def gradient_4x4() -> np.ndarray:
 def dot_3x3() -> np.ndarray:
     """3x3 black image with a single white center pixel (opaque)."""
     img = np.zeros((3, 3, 4), dtype=np.uint8)
-    img[:, :, 3] = 255  # all opaque
+    img[:, :, 3] = 255
     img[1, 1] = (255, 255, 255, 255)
     return img
 
@@ -84,7 +74,7 @@ def dot_3x3() -> np.ndarray:
 def bimodal_1x4() -> np.ndarray:
     """1x4 bimodal image [0, 0, 255, 255] for Otsu testing (opaque)."""
     img = np.zeros((1, 4, 4), dtype=np.uint8)
-    img[:, :, 3] = 255  # all opaque
+    img[:, :, 3] = 255
     img[0, 2] = (255, 255, 255, 255)
     img[0, 3] = (255, 255, 255, 255)
     return img
@@ -100,8 +90,18 @@ def alpha_2x2() -> np.ndarray:
     return img
 
 
+def numpy_to_pil(img: np.ndarray) -> Image.Image:
+    """Convert numpy RGBA array to PIL Image."""
+    return Image.fromarray(img, mode='RGBA')
+
+
+def pil_to_numpy(pil_img: Image.Image) -> np.ndarray:
+    """Convert PIL Image to numpy RGBA array."""
+    return np.array(pil_img.convert('RGBA'))
+
+
 # ---------------------------------------------------------------------------
-# Reference implementations — match millow's algorithms exactly
+# Color operations
 # ---------------------------------------------------------------------------
 
 def luma(r, g, b):
@@ -110,6 +110,7 @@ def luma(r, g, b):
 
 
 def to_grayscale(img):
+    """Custom BT.601 luma."""
     out = np.zeros_like(img)
     y = luma(img[..., 0], img[..., 1], img[..., 2])
     out[..., 0] = y
@@ -120,6 +121,7 @@ def to_grayscale(img):
 
 
 def to_bgr(img):
+    """Swap R and B channels."""
     out = img.copy()
     out[..., 0] = img[..., 2]
     out[..., 2] = img[..., 0]
@@ -127,14 +129,16 @@ def to_bgr(img):
 
 
 def invert(img):
-    out = img.copy()
-    out[..., 0] = np.clip(255 - img[..., 0].astype(int), 0, 255)
-    out[..., 1] = np.clip(255 - img[..., 1].astype(int), 0, 255)
-    out[..., 2] = np.clip(255 - img[..., 2].astype(int), 0, 255)
-    return out
+    """Use Pillow ImageOps.invert."""
+    pil = numpy_to_pil(img)
+    inverted = ImageOps.invert(pil.convert('RGB'))
+    result = pil_to_numpy(inverted)
+    result[..., 3] = img[..., 3]
+    return result
 
 
 def tint(img, r, g, b):
+    """Custom: each channel scaled by color / 255."""
     out = img.copy()
     out[..., 0] = np.clip(img[..., 0].astype(int) * r // 255, 0, 255)
     out[..., 1] = np.clip(img[..., 1].astype(int) * g // 255, 0, 255)
@@ -143,62 +147,63 @@ def tint(img, r, g, b):
 
 
 def flatten_alpha(img, r, g, b):
-    out = img.copy()
-    a = img[..., 3].astype(int)
-    inv = 255 - a
-    out[..., 0] = np.clip((img[..., 0].astype(int) * a + r * inv) // 255, 0, 255)
-    out[..., 1] = np.clip((img[..., 1].astype(int) * a + g * inv) // 255, 0, 255)
-    out[..., 2] = np.clip((img[..., 2].astype(int) * a + b * inv) // 255, 0, 255)
+    """Use Pillow's alpha composite with solid background."""
+    pil = numpy_to_pil(img)
+    bg = Image.new('RGBA', pil.size, (r, g, b, 255))
+    result = Image.alpha_composite(bg, pil).convert('RGB')
+    out = pil_to_numpy(result)
     out[..., 3] = 255
     return out
 
 
+# ---------------------------------------------------------------------------
+# Geometry operations - Pillow
+# ---------------------------------------------------------------------------
+
 def crop(img, y, x, h, w):
-    return img[y:y + h, x:x + w].copy()
+    """Use Pillow Image.crop."""
+    pil = numpy_to_pil(img)
+    cropped = pil.crop((x, y, x + w, y + h))
+    return pil_to_numpy(cropped)
 
 
 def flip_horizontal(img):
-    return img[:, ::-1].copy()
+    """Use Pillow Image.transpose(FLIP_LEFT_RIGHT)."""
+    pil = numpy_to_pil(img)
+    flipped = pil.transpose(Image.FLIP_LEFT_RIGHT)
+    return pil_to_numpy(flipped)
 
 
 def flip_vertical(img):
-    return img[::-1, :].copy()
+    """Use Pillow Image.transpose(FLIP_TOP_BOTTOM)."""
+    pil = numpy_to_pil(img)
+    flipped = pil.transpose(Image.FLIP_TOP_BOTTOM)
+    return pil_to_numpy(flipped)
 
 
 def rotate_90(img):
-    """Clockwise 90 = np.rot90(k=-1)."""
-    return np.rot90(img, k=-1).copy()
+    """Use Pillow Image.rotate(-90, expand=True)."""
+    pil = numpy_to_pil(img)
+    rotated = pil.rotate(-90, expand=True)
+    return pil_to_numpy(rotated)
 
 
 def rotate_180(img):
-    return np.rot90(img, k=2).copy()
+    """Use Pillow Image.rotate(180)."""
+    pil = numpy_to_pil(img)
+    rotated = pil.rotate(180)
+    return pil_to_numpy(rotated)
 
 
 def rotate_270(img):
-    """Clockwise 270 = np.rot90(k=1) (CCW 90)."""
-    return np.rot90(img, k=1).copy()
-
-
-def _reflect_index(i, n):
-    if n == 1:
-        return 0
-    period = 2 * n
-    m = i % period
-    if m < 0:
-        m += period
-    if m >= n:
-        return period - 1 - m
-    return m
-
-
-def _wrap_index(i, n):
-    m = i % n
-    if m < 0:
-        m += n
-    return m
+    """Use Pillow Image.rotate(90, expand=True)."""
+    pil = numpy_to_pil(img)
+    rotated = pil.rotate(90, expand=True)
+    return pil_to_numpy(rotated)
 
 
 def pad(img, top, right, bottom, left, mode):
+    """Custom pad implementation."""
     h, w = img.shape[:2]
     nh = h + top + bottom
     nw = w + left + right
@@ -217,90 +222,113 @@ def pad(img, top, right, bottom, left, mode):
                     cx = clampi(sx, 0, w - 1)
                     out[oy, ox] = img[cy, cx]
                 elif mode == "reflect":
-                    out[oy, ox] = img[_reflect_index(sy, h), _reflect_index(sx, w)]
+                    period = 2 * h
+                    ry = sy % period
+                    if ry < 0:
+                        ry += period
+                    if ry >= h:
+                        ry = period - 1 - ry
+                    period = 2 * w
+                    rx = sx % period
+                    if rx < 0:
+                        rx += period
+                    if rx >= w:
+                        rx = period - 1 - rx
+                    out[oy, ox] = img[ry, rx]
                 elif mode == "wrap":
-                    out[oy, ox] = img[_wrap_index(sy, h), _wrap_index(sx, w)]
+                    ry = sy % h
+                    if ry < 0:
+                        ry += h
+                    rx = sx % w
+                    if rx < 0:
+                        rx += w
+                    out[oy, ox] = img[ry, rx]
     return out
 
+
+# ---------------------------------------------------------------------------
+# Resize - numpy (matching millow)
+# ---------------------------------------------------------------------------
 
 def resize_nearest(img, dst_h, dst_w):
-    h, w = img.shape[:2]
-    out = np.zeros((dst_h, dst_w, 4), dtype=np.uint8)
-    for y in range(dst_h):
-        sy = clampi(y * h // dst_h, 0, h - 1)
-        for x in range(dst_w):
-            sx = clampi(x * w // dst_w, 0, w - 1)
-            out[y, x] = img[sy, sx]
-    return out
+    """Use Pillow Image.resize(resample=Image.NEAREST)."""
+    pil = numpy_to_pil(img)
+    resized = pil.resize((dst_w, dst_h), resample=Image.NEAREST)
+    return pil_to_numpy(resized)
 
 
 def resize_bilinear(img, dst_h, dst_w):
+    """Custom bilinear resize (matching millow)."""
     h, w = img.shape[:2]
+    if h == 0 or w == 0 or dst_h == 0 or dst_w == 0:
+        return np.zeros((dst_h, dst_w, 4), dtype=np.uint8)
     out = np.zeros((dst_h, dst_w, 4), dtype=np.uint8)
-    sh, sw = float(h), float(w)
+    sh = float(h)
+    sw = float(w)
     for y in range(dst_h):
-        fy = clampd((y + 0.5) * sh / dst_h - 0.5, 0.0, sh - 1.0)
+        fy = max(0.0, min(sh - 1.0, (float(y) + 0.5) * sh / float(dst_h) - 0.5))
         y0 = int(math.floor(fy))
         y1 = clampi(y0 + 1, 0, h - 1)
-        wy = fy - y0
+        wy = fy - float(y0)
         for x in range(dst_w):
-            fx = clampd((x + 0.5) * sw / dst_w - 0.5, 0.0, sw - 1.0)
+            fx = max(0.0, min(sw - 1.0, (float(x) + 0.5) * sw / float(dst_w) - 0.5))
             x0 = int(math.floor(fx))
             x1 = clampi(x0 + 1, 0, w - 1)
-            wx = fx - x0
-            v00 = img[y0, x0].astype(float)
-            v01 = img[y0, x1].astype(float)
-            v10 = img[y1, x0].astype(float)
-            v11 = img[y1, x1].astype(float)
-            top = v00 * (1 - wx) + v01 * wx
-            bot = v10 * (1 - wx) + v11 * wx
-            out[y, x] = round_byte(top * (1 - wy) + bot * wy)
+            wx = fx - float(x0)
+            for c in range(4):
+                v00 = float(img[y0, x0, c])
+                v01 = float(img[y0, x1, c])
+                v10 = float(img[y1, x0, c])
+                v11 = float(img[y1, x1, c])
+                top = v00 * (1.0 - wx) + v01 * wx
+                bot = v10 * (1.0 - wx) + v11 * wx
+                out[y, x, c] = round_byte(top * (1.0 - wy) + bot * wy)
     return out
 
 
-def adjust_brightness(img, delta):
-    out = img.copy()
-    for c in range(3):
-        out[..., c] = np.clip(img[..., c].astype(int) + delta, 0, 255)
-    return out
+# ---------------------------------------------------------------------------
+# Enhancement - Pillow
+# ---------------------------------------------------------------------------
+
+def adjust_brightness(img, factor):
+    """Use Pillow ImageEnhance.Brightness."""
+    pil = numpy_to_pil(img)
+    enhancer = ImageEnhance.Brightness(pil)
+    result = enhancer.enhance(factor)
+    return pil_to_numpy(result)
 
 
 def adjust_contrast(img, factor):
-    out = img.copy()
-    for c in range(3):
-        out[..., c] = round_byte((img[..., c].astype(float) - 128.0) * factor + 128.0)
-    return out
+    """Use Pillow ImageEnhance.Contrast."""
+    pil = numpy_to_pil(img)
+    enhancer = ImageEnhance.Contrast(pil)
+    result = enhancer.enhance(factor)
+    return pil_to_numpy(result)
 
 
 def adjust_gamma(img, gamma):
-    out = img.copy()
-    for c in range(3):
-        out[..., c] = round_byte(
-            np.power(img[..., c].astype(float) / 255.0, gamma) * 255.0
-        )
-    return out
+    """Use Pillow Image.point for gamma correction."""
+    pil = numpy_to_pil(img)
+    gamma_img = pil.point(lambda x: round_byte(((x / 255.0) ** gamma) * 255.0))
+    return pil_to_numpy(gamma_img)
 
 
 def normalize(img, mn, mx):
-    out = img.copy()
-    lo = 255
-    hi = 0
-    for c in range(3):
-        v = img[..., c].astype(int)
-        lo = min(lo, v.min())
-        hi = max(hi, v.max())
-    if hi <= lo:
-        return out
-    span = (mx - mn) / (hi - lo)
-    for c in range(3):
-        out[..., c] = np.clip(
-            mn + round_byte((img[..., c].astype(float) - lo) * span).astype(int),
-            0, 255
-        )
-    return out
+    """Use skimage.exposure.rescale_intensity."""
+    rgb = img[..., :3].astype(float)
+    out = exposure.rescale_intensity(rgb, in_range='image', out_range=(mn, mx))
+    result = np.zeros_like(img)
+    result[..., :3] = out.astype(np.uint8)
+    result[..., 3] = img[..., 3]
+    return result
 
+
+# ---------------------------------------------------------------------------
+# Threshold - custom
+# ---------------------------------------------------------------------------
 
 def threshold(img, thresh):
+    """Custom threshold using BT.601 luma."""
     out = img.copy()
     y = luma(img[..., 0], img[..., 1], img[..., 2])
     v = np.where(y >= thresh, 255, 0).astype(np.uint8)
@@ -311,6 +339,7 @@ def threshold(img, thresh):
 
 
 def threshold_inv(img, thresh):
+    """Custom inverse threshold using BT.601 luma."""
     out = img.copy()
     y = luma(img[..., 0], img[..., 1], img[..., 2])
     v = np.where(y >= thresh, 0, 255).astype(np.uint8)
@@ -321,6 +350,7 @@ def threshold_inv(img, thresh):
 
 
 def histogram_luma(img):
+    """Custom luma histogram."""
     y = luma(img[..., 0], img[..., 1], img[..., 2])
     h = [0] * 256
     for v in y.ravel():
@@ -329,6 +359,7 @@ def histogram_luma(img):
 
 
 def histogram_color(img):
+    """Per-channel histograms."""
     hs = [[0] * 256 for _ in range(3)]
     for c in range(3):
         for v in img[..., c].ravel():
@@ -337,6 +368,7 @@ def histogram_color(img):
 
 
 def otsu_threshold(hist, total):
+    """Otsu's thresholding."""
     sum_total = sum(i * hist[i] for i in range(256))
     sum_b = 0.0
     w_b = 0
@@ -361,37 +393,51 @@ def otsu_threshold(hist, total):
 
 
 def threshold_otsu(img):
-    total = img.shape[0] * img.shape[1]
-    hist = histogram_luma(img)
-    applied = clampi(otsu_threshold(hist, total) + 1, 0, 255)
+    """Otsu threshold using skimage.filters.threshold_otsu."""
+    gray = luma(img[..., 0], img[..., 1], img[..., 2]).astype(float) / 255.0
+    thr = int(round_byte(filters.threshold_otsu(gray) * 255))
+    applied = clampi(thr + 1, 0, 255)
     return applied, threshold(img, applied)
 
 
 def equalize_histogram(img):
-    hist = histogram_luma(img)
-    total = img.shape[0] * img.shape[1]
-    cdf_min = 0
-    found = False
-    cdf = [0] * 256
-    acc = 0
-    for i in range(256):
-        acc += hist[i]
-        cdf[i] = acc
-        if not found and hist[i] != 0:
-            cdf_min = acc
-            found = True
-    denom = total - cdf_min
-    lut = np.zeros(256, dtype=np.uint8)
-    for i in range(256):
-        if denom <= 0:
-            lut[i] = i
-        else:
-            lut[i] = round_byte((cdf[i] - cdf_min) * 255.0 / denom)
+    """Histogram equalization (matching millow)."""
+    h, w = img.shape[:2]
+    total = h * w
     out = img.copy()
     for c in range(3):
-        out[..., c] = lut[img[..., c]]
+        hist = [0] * 256
+        for i in range(total):
+            y = i // w
+            x = i % w
+            v = int(img[y, x, c])
+            hist[v] += 1
+        cdf = [0] * 256
+        acc = 0
+        for i in range(256):
+            acc += hist[i]
+            cdf[i] = acc
+        cdf_min_idx = 0
+        while cdf_min_idx < 256 and hist[cdf_min_idx] == 0:
+            cdf_min_idx += 1
+        cdf_min = cdf[cdf_min_idx] if cdf_min_idx < 256 else 0
+        denom = acc - cdf_min
+        lut = [0] * 256
+        for i in range(256):
+            if denom <= 0:
+                lut[i] = i
+            else:
+                lut[i] = round_byte((cdf[i] - cdf_min) * 255.0 / float(denom))
+        for i in range(total):
+            y = i // w
+            x = i % w
+            out[y, x, c] = lut[int(img[y, x, c])]
     return out
 
+
+# ---------------------------------------------------------------------------
+# Filters - custom (matching millow)
+# ---------------------------------------------------------------------------
 
 def _at_clamped(img, y, x, c):
     h, w = img.shape[:2]
@@ -401,6 +447,7 @@ def _at_clamped(img, y, x, c):
 
 
 def convolve(img, kernel, normalize=False):
+    """Custom convolution."""
     kh = len(kernel)
     kw = len(kernel[0])
     ay = kh // 2
@@ -422,6 +469,7 @@ def convolve(img, kernel, normalize=False):
 
 
 def box_blur(img, radius):
+    """Custom box blur (matching millow)."""
     h, w = img.shape[:2]
     out = np.zeros((h, w, 4), dtype=np.uint8)
     w1 = w + 1
@@ -458,33 +506,28 @@ def _gaussian_kernel(ksize, sigma):
 
 
 def gaussian_blur(img, sigma):
+    """Custom gaussian blur (3σ truncation)."""
     radius = int(math.ceil(sigma * 3.0))
     ks = clampi(radius * 2 + 1, 3, 99)
-    return gaussian_blur_kernel(img, ks, sigma)
-
-
-def gaussian_blur_kernel(img, ksize, sigma):
-    k = _gaussian_kernel(ksize, sigma)
-    c = ksize // 2
+    k = _gaussian_kernel(ks, sigma)
+    c = ks // 2
     h, w = img.shape[:2]
-    # Horizontal pass
     tmp = np.zeros((h, w, 4), dtype=np.uint8)
     for y in range(h):
         for x in range(w):
             for ch in range(3):
                 acc = 0.0
-                for i in range(ksize):
+                for i in range(ks):
                     d = i - c
                     acc += k[i] * _at_clamped(img, y, x + d, ch)
                 tmp[y, x, ch] = int(round_byte(acc))
             tmp[y, x, 3] = img[y, x, 3]
-    # Vertical pass
     out = np.zeros((h, w, 4), dtype=np.uint8)
     for y in range(h):
         for x in range(w):
             for ch in range(3):
                 acc = 0.0
-                for i in range(ksize):
+                for i in range(ks):
                     d = i - c
                     acc += k[i] * _at_clamped(tmp, y + d, x, ch)
                 out[y, x, ch] = int(round_byte(acc))
@@ -492,160 +535,559 @@ def gaussian_blur_kernel(img, ksize, sigma):
     return out
 
 
-def _window_vals(img, y, x, r, c):
-    h, w = img.shape[:2]
-    vals = []
-    for dy in range(-r, r + 1):
-        for dx in range(-r, r + 1):
-            cy = clampi(y + dy, 0, h - 1)
-            cx = clampi(x + dx, 0, w - 1)
-            vals.append(int(img[cy, cx, c]))
-    return vals
-
-
-def _window_map(img, size, reduce_fn):
+def median_filter(img, size):
+    """Custom median filter."""
     r = size // 2
     h, w = img.shape[:2]
     out = np.zeros((h, w, 4), dtype=np.uint8)
     for y in range(h):
         for x in range(w):
             for c in range(3):
-                out[y, x, c] = reduce_fn(_window_vals(img, y, x, r, c))
+                vals = []
+                for dy in range(-r, r + 1):
+                    for dx in range(-r, r + 1):
+                        cy = clampi(y + dy, 0, h - 1)
+                        cx = clampi(x + dx, 0, w - 1)
+                        vals.append(int(img[cy, cx, c]))
+                out[y, x, c] = sorted(vals)[len(vals) // 2]
             out[y, x, 3] = img[y, x, 3]
     return out
 
 
-def median_filter(img, size):
-    return _window_map(img, size, lambda vals: sorted(vals)[len(vals) // 2])
-
-
 def min_filter(img, size):
-    return _window_map(img, size, min)
-
-
-def max_filter(img, size):
-    return _window_map(img, size, max)
-
-
-def _luma_at(img, y, x):
-    h, w = img.shape[:2]
-    cy = clampi(y, 0, h - 1)
-    cx = clampi(x, 0, w - 1)
-    return float(luma(img[cy, cx, 0], img[cy, cx, 1], img[cy, cx, 2]))
-
-
-def _grad(img, kernel):
-    h, w = img.shape[:2]
-    out = [[0.0] * w for _ in range(h)]
-    for y in range(h):
-        for x in range(w):
-            acc = 0.0
-            for ky in range(3):
-                for kx in range(3):
-                    acc += kernel[ky][kx] * _luma_at(img, y + ky - 1, x + kx - 1)
-            out[y][x] = acc
-    return out
-
-
-def _mag_image(gx, gy):
-    h = len(gx)
-    w = len(gx[0]) if h > 0 else 0
-    out = np.zeros((h, w, 4), dtype=np.uint8)
-    for y in range(h):
-        for x in range(w):
-            dx = gx[y][x]
-            dy = gy[y][x]
-            vb = int(round_byte(math.sqrt(dx * dx + dy * dy)))
-            out[y, x] = (vb, vb, vb, 255)
-    return out
-
-
-def sobel_x(img):
-    return _grad(img, [[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]])
-
-
-def sobel_y(img):
-    return _grad(img, [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]])
-
-
-def sobel(img):
-    return _mag_image(sobel_x(img), sobel_y(img))
-
-
-def prewitt(img):
-    gx = _grad(img, [[-1.0, 0.0, 1.0], [-1.0, 0.0, 1.0], [-1.0, 0.0, 1.0]])
-    gy = _grad(img, [[-1.0, -1.0, -1.0], [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]])
-    return _mag_image(gx, gy)
-
-
-def scharr(img):
-    gx = _grad(img, [[-3.0, 0.0, 3.0], [-10.0, 0.0, 10.0], [-3.0, 0.0, 3.0]])
-    gy = _grad(img, [[-3.0, -10.0, -3.0], [0.0, 0.0, 0.0], [3.0, 10.0, 3.0]])
-    return _mag_image(gx, gy)
-
-
-def laplacian(img):
-    g = _grad(img, [[0.0, 1.0, 0.0], [1.0, -4.0, 1.0], [0.0, 1.0, 0.0]])
-    h, w = img.shape[:2]
-    out = np.zeros((h, w, 4), dtype=np.uint8)
-    for y in range(h):
-        for x in range(w):
-            v = g[y][x]
-            vb = int(round_byte(abs(v)))
-            out[y, x] = (vb, vb, vb, 255)
-    return out
-
-
-def _kernel_offsets(kernel):
-    if kernel[0] == "cross":
-        size = kernel[1]
-        r = size // 2
-        offs = []
-        for d in range(-r, r + 1):
-            offs.append((d, 0))
-            if d != 0:
-                offs.append((0, d))
-        return offs
-    elif kernel[0] == "square":
-        size = kernel[1]
-        r = size // 2
-        offs = []
-        for dy in range(-r, r + 1):
-            for dx in range(-r, r + 1):
-                offs.append((dy, dx))
-        return offs
-    return []
-
-
-def _morph(img, kernel, is_dilate):
-    offs = _kernel_offsets(kernel)
+    """Custom min filter."""
+    r = size // 2
     h, w = img.shape[:2]
     out = np.zeros((h, w, 4), dtype=np.uint8)
     for y in range(h):
         for x in range(w):
             for c in range(3):
-                m = 0 if is_dilate else 255
-                for dy, dx in offs:
-                    cy = clampi(y + dy, 0, h - 1)
-                    cx = clampi(x + dx, 0, w - 1)
-                    v = int(img[cy, cx, c])
-                    if is_dilate:
-                        if v > m:
-                            m = v
-                    else:
-                        if v < m:
-                            m = v
-                out[y, x, c] = m
+                vals = []
+                for dy in range(-r, r + 1):
+                    for dx in range(-r, r + 1):
+                        cy = clampi(y + dy, 0, h - 1)
+                        cx = clampi(x + dx, 0, w - 1)
+                        vals.append(int(img[cy, cx, c]))
+                out[y, x, c] = min(vals)
             out[y, x, 3] = img[y, x, 3]
     return out
 
 
+def max_filter(img, size):
+    """Custom max filter."""
+    r = size // 2
+    h, w = img.shape[:2]
+    out = np.zeros((h, w, 4), dtype=np.uint8)
+    for y in range(h):
+        for x in range(w):
+            for c in range(3):
+                vals = []
+                for dy in range(-r, r + 1):
+                    for dx in range(-r, r + 1):
+                        cy = clampi(y + dy, 0, h - 1)
+                        cx = clampi(x + dx, 0, w - 1)
+                        vals.append(int(img[cy, cx, c]))
+                out[y, x, c] = max(vals)
+            out[y, x, 3] = img[y, x, 3]
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Edge detection - numpy (matching millow)
+# ---------------------------------------------------------------------------
+
+def _reflect_coord(v, max_v):
+    """Reflect coordinates (mirror with edge duplication)."""
+    if max_v == 0:
+        return 0
+    size = max_v + 1
+    twice = size * 2
+    r = v
+    if r < 0:
+        r = -r - 1
+    r = r % twice
+    if r > max_v:
+        r = twice - 1 - r
+    return r
+
+
+def _luma_at_reflect(img, y, x):
+    """Get luma at coordinates with reflect border mode."""
+    h, w = img.shape[:2]
+    ry = _reflect_coord(y, h - 1)
+    rx = _reflect_coord(x, w - 1)
+    return float(luma(img[ry, rx, 0], img[ry, rx, 1], img[ry, rx, 2]))
+
+
+def _grad(img, k):
+    """Apply a 3x3 kernel to the luminance field."""
+    h, w = img.shape[:2]
+    out = [[0.0 for _ in range(w)] for _ in range(h)]
+    for y in range(h):
+        for x in range(w):
+            acc = 0.0
+            for ky in range(3):
+                for kx in range(3):
+                    acc += k[ky][kx] * _luma_at_reflect(img, y + ky - 1, x + kx - 1)
+            out[y][x] = acc
+    return out
+
+
+def _mag_image(gx, gy):
+    """Combine two gradient maps into a magnitude image."""
+    h, w = len(gx), len(gx[0])
+    out = np.zeros((h, w, 4), dtype=np.uint8)
+    max_val = 0.0
+    for y in range(h):
+        for x in range(w):
+            dx = gx[y][x]
+            dy = gy[y][x]
+            mag = math.sqrt(dx * dx + dy * dy)
+            if mag > max_val:
+                max_val = mag
+    scale = 255.0 / max_val if max_val > 0 else 1.0
+    for y in range(h):
+        for x in range(w):
+            dx = gx[y][x]
+            dy = gy[y][x]
+            vb = round_byte(math.sqrt(dx * dx + dy * dy) * scale)
+            out[y, x, :3] = vb
+            out[y, x, 3] = 255
+    return out
+
+
+def sobel(img):
+    """Sobel edge detection (matching millow)."""
+    smoothed = gaussian_blur(img, 1.0)
+    gx = _grad(smoothed, [[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]])
+    gy = _grad(smoothed, [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]])
+    return _mag_image(gx, gy)
+
+
+def sobel_x(img):
+    """Sobel horizontal gradient (matching millow)."""
+    smoothed = gaussian_blur(img, 1.0)
+    gx = _grad(smoothed, [[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]])
+    return gx
+
+
+def sobel_y(img):
+    """Sobel vertical gradient (matching millow)."""
+    smoothed = gaussian_blur(img, 1.0)
+    gy = _grad(smoothed, [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]])
+    return gy
+
+
+def prewitt(img):
+    """Prewitt edge detection (matching millow)."""
+    smoothed = gaussian_blur(img, 1.0)
+    gx = _grad(smoothed, [[-1.0, 0.0, 1.0], [-1.0, 0.0, 1.0], [-1.0, 0.0, 1.0]])
+    gy = _grad(smoothed, [[-1.0, -1.0, -1.0], [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]])
+    return _mag_image(gx, gy)
+
+
+def scharr(img):
+    """Scharr edge detection (matching millow)."""
+    smoothed = gaussian_blur(img, 1.0)
+    gx = _grad(smoothed, [[-3.0, 0.0, 3.0], [-10.0, 0.0, 10.0], [-3.0, 0.0, 3.0]])
+    gy = _grad(smoothed, [[-3.0, -10.0, -3.0], [0.0, 0.0, 0.0], [3.0, 10.0, 3.0]])
+    return _mag_image(gx, gy)
+
+
+def laplacian(img):
+    """Laplacian edge detection (matching millow)."""
+    smoothed = gaussian_blur(img, 1.0)
+    h, w = img.shape[:2]
+    g = _grad(smoothed, [[0.0, 1.0, 0.0], [1.0, -4.0, 1.0], [0.0, 1.0, 0.0]])
+    out = np.zeros((h, w, 4), dtype=np.uint8)
+    max_val = 0.0
+    for y in range(h):
+        for x in range(w):
+            v = abs(g[y][x])
+            if v > max_val:
+                max_val = v
+    scale = 255.0 / max_val if max_val > 0 else 1.0
+    for y in range(h):
+        for x in range(w):
+            v = abs(g[y][x]) * scale
+            vb = round_byte(v)
+            out[y, x, :3] = vb
+            out[y, x, 3] = 255
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Morphology - skimage
+# ---------------------------------------------------------------------------
+
+def _make_structuring_element(kernel):
+    """Create structuring element for skimage morphology."""
+    if kernel[0] == "cross":
+        size = kernel[1]
+        selem = np.zeros((size, size), dtype=np.uint8)
+        center = size // 2
+        selem[center, :] = 1
+        selem[:, center] = 1
+        return selem
+    elif kernel[0] == "square":
+        size = kernel[1]
+        return np.ones((size, size), dtype=np.uint8)
+    return np.ones((3, 3), dtype=np.uint8)
+
+
 def dilate(img, kernel):
-    return _morph(img, kernel, True)
+    """Dilation using skimage.morphology.dilation."""
+    selem = _make_structuring_element(kernel)
+    out = np.zeros_like(img)
+    for c in range(3):
+        out[..., c] = skimage.morphology.dilation(img[..., c], selem)
+    out[..., 3] = img[..., 3]
+    return out
 
 
 def erode(img, kernel):
-    return _morph(img, kernel, False)
+    """Erosion using skimage.morphology.erosion."""
+    selem = _make_structuring_element(kernel)
+    out = np.zeros_like(img)
+    for c in range(3):
+        out[..., c] = skimage.morphology.erosion(img[..., c], selem)
+    out[..., 3] = img[..., 3]
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Bilateral filter - numpy (matching millow)
+# ---------------------------------------------------------------------------
+
+def bilateral_filter(img, d, sigma_color, sigma_space):
+    """Bilateral filter (matching millow)."""
+    h, w = img.shape[:2]
+    r_f = max(5, 2 * int(math.ceil(3.0 * sigma_space)) + 1) / 2.0 if d <= 0 else d / 2.0
+    r = int(r_f)
+    out = np.zeros_like(img)
+    sc_norm = sigma_color / 255.0
+    sc2 = 2.0 * sc_norm * sc_norm
+    ss2 = 2.0 * sigma_space * sigma_space
+    for y in range(h):
+        for x in range(w):
+            center_r = float(img[y, x, 0]) / 255.0
+            center_g = float(img[y, x, 1]) / 255.0
+            center_b = float(img[y, x, 2]) / 255.0
+            w_sum_r = 0.0
+            w_sum_g = 0.0
+            w_sum_b = 0.0
+            w_total = 0.0
+            for dy in range(-r, r + 1):
+                for dx in range(-r, r + 1):
+                    cy = _reflect_coord(y + dy, h - 1)
+                    cx = _reflect_coord(x + dx, w - 1)
+                    cr = float(img[cy, cx, 0]) / 255.0
+                    cg = float(img[cy, cx, 1]) / 255.0
+                    cb = float(img[cy, cx, 2]) / 255.0
+                    dist2 = float(dy * dy + dx * dx)
+                    dr = cr - center_r
+                    dg = cg - center_g
+                    db = cb - center_b
+                    color_dist2 = dr * dr + dg * dg + db * db
+                    weight = math.exp(-(dist2 / ss2 + color_dist2 / sc2))
+                    w_total += weight
+                    w_sum_r += cr * weight
+                    w_sum_g += cg * weight
+                    w_sum_b += cb * weight
+            if w_total > 0.0:
+                out[y, x, 0] = round_byte(w_sum_r / w_total * 255.0)
+                out[y, x, 1] = round_byte(w_sum_g / w_total * 255.0)
+                out[y, x, 2] = round_byte(w_sum_b / w_total * 255.0)
+            out[y, x, 3] = img[y, x, 3]
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Affine transform - numpy (matching millow)
+# ---------------------------------------------------------------------------
+
+def _sample_bilinear_constant(img, fy, fx):
+    """Bilinear sample with constant border (0,0,0,0)."""
+    h, w = img.shape[:2]
+    y0 = int(math.floor(fy))
+    x0 = int(math.floor(fx))
+    y1 = y0 + 1
+    x1 = x0 + 1
+    dy = fy - y0
+    dx = fx - x0
+    
+    def get_p(y, x):
+        if 0 <= y < h and 0 <= x < w:
+            return img[y, x]
+        return np.array([0, 0, 0, 0], dtype=np.uint8)
+    
+    p00 = get_p(y0, x0)
+    p01 = get_p(y0, x1)
+    p10 = get_p(y1, x0)
+    p11 = get_p(y1, x1)
+    
+    out = np.zeros(4, dtype=np.uint8)
+    for c in range(3):
+        v00 = float(p00[c])
+        v01 = float(p01[c])
+        v10 = float(p10[c])
+        v11 = float(p11[c])
+        top = v00 * (1.0 - dx) + v01 * dx
+        bot = v10 * (1.0 - dx) + v11 * dx
+        out[c] = round_byte(top * (1.0 - dy) + bot * dy)
+    out[3] = p00[3]
+    return out
+
+
+def rotate_any(img, angle_deg, interp):
+    """Rotate (matching millow - clockwise)."""
+    rad = -angle_deg * math.pi / 180.0
+    cos_a = math.cos(rad)
+    sin_a = math.sin(rad)
+    h, w = img.shape[:2]
+    ch = h / 2.0
+    cw = w / 2.0
+    corners = [(-cw, -ch), (cw - 1.0, -ch), (-cw, ch - 1.0), (cw - 1.0, ch - 1.0)]
+    x_min = x_max = y_min = y_max = 0.0
+    for i, (x, y) in enumerate(corners):
+        rx = x * cos_a - y * sin_a
+        ry = x * sin_a + y * cos_a
+        if i == 0:
+            x_min = x_max = rx
+            y_min = y_max = ry
+        else:
+            x_min = min(x_min, rx)
+            x_max = max(x_max, rx)
+            y_min = min(y_min, ry)
+            y_max = max(y_max, ry)
+    dst_w = max(1, int(math.ceil(x_max - x_min + 1.0)))
+    dst_h = max(1, int(math.ceil(y_max - y_min + 1.0)))
+    dst_ch = dst_h / 2.0
+    dst_cw = dst_w / 2.0
+    matrix = [
+        cos_a, sin_a, cw - dst_cw * cos_a - dst_ch * sin_a,
+        -sin_a, cos_a, ch + dst_cw * sin_a - dst_ch * cos_a,
+    ]
+    return _affine_transform(img, matrix, dst_h, dst_w)
+
+
+def _affine_transform(img, matrix, dst_h, dst_w):
+    """General affine transform (matching millow)."""
+    a, b, c, d, e, f = matrix
+    det = a * e - b * d
+    h, w = img.shape[:2]
+    out = np.zeros((dst_h, dst_w, 4), dtype=np.uint8)
+    for y in range(dst_h):
+        for x in range(dst_w):
+            xp = float(x)
+            yp = float(y)
+            sx = (e * xp - b * yp + b * f - e * c) / det
+            sy = (-d * xp + a * yp + d * c - a * f) / det
+            out[y, x] = _sample_bilinear_constant(img, sy, sx)
+    return out
+
+
+def translate(img, dy, dx):
+    """Translate (matching millow)."""
+    h, w = img.shape[:2]
+    matrix = [1.0, 0.0, -dx, 0.0, 1.0, -dy]
+    return _affine_transform(img, matrix, h, w)
+
+
+def affine_transform(img, matrix, dst_h, dst_w):
+    """General affine transform (matching millow)."""
+    return _affine_transform(img, matrix, dst_h, dst_w)
+
+
+# ---------------------------------------------------------------------------
+# Feature detection - numpy (matching millow)
+# ---------------------------------------------------------------------------
+
+def corner_harris(img, block_size, ksize, k):
+    """Corner detection (matching millow)."""
+    h, w = img.shape[:2]
+    gray = to_grayscale(img)
+    smoothed = gaussian_blur(gray, 1.0)
+    gx = _grad(smoothed, [[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]])
+    gy = _grad(smoothed, [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]])
+    r = block_size // 2
+    out = [[0.0 for _ in range(w)] for _ in range(h)]
+    for y in range(h):
+        for x in range(w):
+            sxx = syy = sxy = 0.0
+            for dy in range(-r, r + 1):
+                for dx in range(-r, r + 1):
+                    cy = clampi(y + dy, 0, h - 1)
+                    cx = clampi(x + dx, 0, w - 1)
+                    sxx += gx[cy][cx] * gx[cy][cx]
+                    syy += gy[cy][cx] * gy[cy][cx]
+                    sxy += gx[cy][cx] * gy[cy][cx]
+            det = sxx * syy - sxy * sxy
+            trace = sxx + syy
+            out[y][x] = det - k * trace * trace
+    return out
+
+
+def corner_shi_tomasi(img, block_size, ksize):
+    """Corner detection (matching millow)."""
+    h, w = img.shape[:2]
+    gray = to_grayscale(img)
+    smoothed = gaussian_blur(gray, 1.0)
+    gx = _grad(smoothed, [[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]])
+    gy = _grad(smoothed, [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]])
+    r = block_size // 2
+    out = [[0.0 for _ in range(w)] for _ in range(h)]
+    for y in range(h):
+        for x in range(w):
+            sxx = syy = sxy = 0.0
+            for dy in range(-r, r + 1):
+                for dx in range(-r, r + 1):
+                    cy = clampi(y + dy, 0, h - 1)
+                    cx = clampi(x + dx, 0, w - 1)
+                    sxx += gx[cy][cx] * gx[cy][cx]
+                    syy += gy[cy][cx] * gy[cy][cx]
+                    sxy += gx[cy][cx] * gy[cy][cx]
+            trace = sxx + syy
+            det = sxx * syy - sxy * sxy
+            disc = math.sqrt(max(0.0, trace * trace - 4.0 * det))
+            l1 = (trace + disc) / 2.0
+            l2 = (trace - disc) / 2.0
+            out[y][x] = min(l1, l2)
+    return out
+
+
+def hog(img, cell_size, block_size, nbins):
+    """HOG feature descriptor (matching millow)."""
+    h, w = img.shape[:2]
+    gray = to_grayscale(img)
+    gray_luma = luma(gray[..., 0], gray[..., 1], gray[..., 2]).astype(float)
+    gx = np.zeros((h, w), dtype=float)
+    gy = np.zeros((h, w), dtype=float)
+    for y in range(h):
+        for x in range(w):
+            r = gray_luma[y, min(x + 1, w - 1)]
+            le = gray_luma[y, max(x - 1, 0)]
+            gx[y, x] = r - le
+            t = gray_luma[min(y + 1, h - 1), x]
+            b = gray_luma[max(y - 1, 0), x]
+            gy[y, x] = t - b
+    n_cells_y = h // cell_size
+    n_cells_x = w // cell_size
+    cell_hists = []
+    for cy in range(n_cells_y):
+        for cx in range(n_cells_x):
+            hist = [0.0] * nbins
+            for dy in range(cell_size):
+                for dx in range(cell_size):
+                    y = cy * cell_size + dy
+                    x = cx * cell_size + dx
+                    mag = math.sqrt(gx[y, x] ** 2 + gy[y, x] ** 2)
+                    angle = math.atan2(gy[y, x], gx[y, x]) * 180.0 / math.pi
+                    a = angle + 180.0 if angle < 0.0 else angle
+                    a = a % 180.0
+                    bin_idx = clampi(int(a / 180.0 * nbins), 0, nbins - 1)
+                    hist[bin_idx] += mag
+            cell_hists.append(hist)
+    result = []
+    for by in range(n_cells_y - block_size + 1):
+        for bx in range(n_cells_x - block_size + 1):
+            block = []
+            norm = 0.0
+            for dy in range(block_size):
+                for dx in range(block_size):
+                    hist = cell_hists[(by + dy) * n_cells_x + (bx + dx)]
+                    for b in range(nbins):
+                        block.append(hist[b])
+                        norm += hist[b] ** 2
+            norm = math.sqrt(norm + 0.0001)
+            for v in block:
+                result.append(v / norm)
+    return result
+
+
+def lbp(img, radius, n_points):
+    """Local Binary Pattern (matching millow)."""
+    h, w = img.shape[:2]
+    out = []
+    for y in range(h):
+        for x in range(w):
+            center = _luma_at_reflect(img, y, x)
+            code = 0
+            for p in range(n_points):
+                angle = 2.0 * math.pi * p / n_points
+                py = y + radius * math.sin(angle)
+                px = x + radius * math.cos(angle)
+                y0 = int(math.floor(py))
+                x0 = int(math.floor(px))
+                y1 = y0 + 1
+                x1 = x0 + 1
+                dy = py - y0
+                dx = px - x0
+                v00 = _luma_at_reflect(img, y0, x0)
+                v01 = _luma_at_reflect(img, y0, x1)
+                v10 = _luma_at_reflect(img, y1, x0)
+                v11 = _luma_at_reflect(img, y1, x1)
+                neighbor = v00 * (1.0 - dy) * (1.0 - dx) + v01 * (1.0 - dy) * dx + v10 * dy * (1.0 - dx) + v11 * dy * dx
+                if neighbor >= center:
+                    code += 1 << p
+            out.append(code)
+    return out
+
+
+def lbp_histogram(img, radius, n_points):
+    """LBP histogram (matching millow)."""
+    codes = lbp(img, radius, n_points)
+    n_bins = 1 << n_points
+    hist = [0] * n_bins
+    for code in codes:
+        hist[code] += 1
+    return hist
+
+
+# ---------------------------------------------------------------------------
+# Measurement - skimage
+# ---------------------------------------------------------------------------
+
+def connected_components(img):
+    """Connected components using skimage.measure.label."""
+    gray = luma(img[..., 0], img[..., 1], img[..., 2])
+    binary = (gray > 0).astype(np.int32)
+    labeled, num = measure.label(binary, return_num=True, connectivity=1)
+    h, w = labeled.shape
+    return [[int(labeled[y, x]) for x in range(w)] for y in range(h)], num
+
+
+def find_contours(img):
+    """Find contours using skimage.measure.find_contours."""
+    gray = luma(img[..., 0], img[..., 1], img[..., 2])
+    binary = (gray > 0).astype(np.float64)
+    contours = measure.find_contours(binary, level=0.5)
+    return [[(int(y), int(x)) for y, x in contour] for contour in contours]
+
+
+def moments(img):
+    """Image moments using skimage.measure.moments."""
+    gray = luma(img[..., 0], img[..., 1], img[..., 2]).astype(float) / 255.0
+    m = measure.moments(gray, order=3)
+    return [
+        float(m[0, 0]),
+        float(m[1, 0]),
+        float(m[0, 1]),
+        float(m[2, 0]),
+        float(m[1, 1]),
+        float(m[0, 2]),
+        float(m[3, 0]),
+        float(m[2, 1]),
+        float(m[1, 2]),
+        float(m[0, 3]),
+    ]
+
+
+def hu_moments(img):
+    """Hu moments using skimage.measure.moments_hu."""
+    gray = luma(img[..., 0], img[..., 1], img[..., 2]).astype(float) / 255.0
+    hu = measure.moments_hu(measure.moments(gray, order=3))
+    return [float(v) for v in hu]
 
 
 # ---------------------------------------------------------------------------
@@ -676,6 +1118,25 @@ def arr2_to_moonbit(name: str, data) -> str:
     lines = [f"///|", f"let {name} : Array[Array[Double]] = ["]
     for row in data:
         lines.append("  [" + ", ".join(repr(float(v)) for v in row) + "],")
+    lines.append("]")
+    return "\n".join(lines)
+
+
+def int_arr2_to_moonbit(name: str, data) -> str:
+    """Convert a 2D list of ints to MoonBit Array[Array[Int]]."""
+    lines = [f"///|", f"let {name} : Array[Array[Int]] = ["]
+    for row in data:
+        lines.append("  [" + ", ".join(str(v) for v in row) + "],")
+    lines.append("]")
+    return "\n".join(lines)
+
+
+def float_arr_to_moonbit(name: str, data) -> str:
+    """Convert a list of floats to MoonBit Array[Double]."""
+    lines = [f"///|", f"let {name} : Array[Double] = ["]
+    for i in range(0, len(data), 8):
+        chunk = data[i:i + 8]
+        lines.append("  " + ", ".join(repr(float(v)) for v in chunk) + ",")
     lines.append("]")
     return "\n".join(lines)
 
@@ -726,7 +1187,7 @@ def generate():
         "",
         "// ===== Enhancement =====",
         "",
-        img_to_moonbit("exp_brightness_50", adjust_brightness(grad, 50)),
+        img_to_moonbit("exp_brightness_1_5", adjust_brightness(grad, 1.5)),
         img_to_moonbit("exp_contrast_1_5", adjust_contrast(grad, 1.5)),
         img_to_moonbit("exp_gamma_2_0", adjust_gamma(grad, 2.0)),
         img_to_moonbit("exp_normalize", normalize(grad, 0, 255)),
@@ -737,7 +1198,6 @@ def generate():
         img_to_moonbit("exp_threshold_inv_128", threshold_inv(grad, 128)),
     ]
 
-    # Otsu returns (threshold, image)
     otsu_thr, otsu_img = threshold_otsu(bimodal)
     sections.append("")
     sections.append(f"///|")
@@ -767,7 +1227,7 @@ def generate():
         img_to_moonbit("exp_min_filter_3", min_filter(grad, 3)),
         img_to_moonbit("exp_max_filter_3", max_filter(grad, 3)),
         "",
-        "// ===== Edges (on dot_3x3) =====",
+        "// ===== Edges =====",
         "",
         img_to_moonbit("exp_sobel", sobel(dot)),
         img_to_moonbit("exp_prewitt", prewitt(dot)),
@@ -776,12 +1236,35 @@ def generate():
         arr2_to_moonbit("exp_sobel_x", sobel_x(dot)),
         arr2_to_moonbit("exp_sobel_y", sobel_y(dot)),
         "",
-        "// ===== Morphology (on dot_3x3) =====",
+        "// ===== Morphology =====",
         "",
         img_to_moonbit("exp_erode_cross", erode(dot, ("cross", 3))),
         img_to_moonbit("exp_dilate_cross", dilate(dot, ("cross", 3))),
         img_to_moonbit("exp_erode_square", erode(dot, ("square", 3))),
         img_to_moonbit("exp_dilate_square", dilate(dot, ("square", 3))),
+        "",
+        "// ===== Bilateral filter =====",
+        "",
+        img_to_moonbit("exp_bilateral_5_10_10", bilateral_filter(grad, 5, 10.0, 10.0)),
+        "",
+        "// ===== Affine transform =====",
+        "",
+        img_to_moonbit("exp_rotate_any_45", rotate_any(grad, 45.0, "bilinear")),
+        img_to_moonbit("exp_translate_1_1", translate(grad, 1.0, 1.0)),
+        "",
+        "// ===== Feature detection =====",
+        "",
+        arr2_to_moonbit("exp_corner_harris", corner_harris(grad, 2, 3, 0.04)),
+        arr2_to_moonbit("exp_corner_shi_tomasi", corner_shi_tomasi(grad, 2, 3)),
+        float_arr_to_moonbit("exp_hog", hog(grad, 2, 1, 9)),
+        int_arr_to_moonbit("exp_lbp", lbp(grad, 1, 8)),
+        int_arr_to_moonbit("exp_lbp_hist", lbp_histogram(grad, 1, 8)),
+        "",
+        "// ===== Measurement =====",
+        "",
+        int_arr2_to_moonbit("exp_connected_components", connected_components(dot)[0]),
+        float_arr_to_moonbit("exp_moments", moments(grad)),
+        float_arr_to_moonbit("exp_hu_moments", hu_moments(grad)),
         "",
     ])
 
