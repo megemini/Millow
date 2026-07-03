@@ -63,3 +63,42 @@ pub fn threshold_otsu(img : Image) -> (Byte, Image) {
   let applied = clampi(otsu(histogram(img), total) + 1, 0, 255).to_byte()
   (applied, threshold(img, applied))
 }
+
+///|
+/// Sauvola local thresholding. Computes a threshold per pixel based on the
+/// local mean and standard deviation within a `window_size × window_size`
+/// window. Suitable for images with uneven illumination.
+pub fn threshold_sauvola(img : Image, window_size : Int, k : Double) -> Image {
+  let r = window_size / 2
+  let gray = to_grayscale(img)
+  let out = Image::new(img.h, img.w)
+  for y = 0; y < img.h; y = y + 1 {
+    for x = 0; x < img.w; x = x + 1 {
+      let mut sum = 0.0
+      let mut sum2 = 0.0
+      let mut count = 0
+      for dy = -r; dy <= r; dy = dy + 1 {
+        for dx = -r; dx <= r; dx = dx + 1 {
+          let cy = clampi(y + dy, 0, img.h - 1)
+          let cx = clampi(x + dx, 0, img.w - 1)
+          let v = gray.data[gray.offset(cy, cx)].to_double()
+          sum = sum + v
+          sum2 = sum2 + v * v
+          count = count + 1
+        }
+      }
+      let mean = sum / count.to_double()
+      let variance = sum2 / count.to_double() - mean * mean
+      let std = if variance > 0.0 { variance.sqrt() } else { 0.0 }
+      let t = mean * (1.0 - k * (1.0 - std / 128.0))
+      let pixel_luma = gray.data[gray.offset(y, x)].to_int()
+      let vb : Byte = if pixel_luma.to_double() >= t { 255 } else { 0 }
+      let o = out.offset(y, x)
+      out.data[o] = vb
+      out.data[o + 1] = vb
+      out.data[o + 2] = vb
+      out.data[o + 3] = img.data[img.offset(y, x) + 3]
+    }
+  }
+  out
+}

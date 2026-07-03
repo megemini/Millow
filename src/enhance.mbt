@@ -7,18 +7,30 @@ fn apply_rgb_lut(img : Image, lut : Array[Byte]) -> Image {
 }
 
 ///|
-/// Additive brightness adjustment (per-channel, clamped).
-pub fn adjust_brightness(img : Image, delta : Int) -> Image {
-  apply_rgb_lut(img, Array::makei(256, fn(i) { clamp_byte(i + delta) }))
+/// Brightness adjustment using a multiplicative factor.
+/// `factor = 1.0` returns the original image, `factor = 0.0` returns a black image.
+pub fn adjust_brightness(img : Image, factor : Double) -> Image {
+  apply_rgb_lut(
+    img,
+    Array::makei(256, fn(i) { round_byte(i.to_double() * factor) }),
+  )
 }
 
 ///|
-/// Contrast adjustment about mid-gray 128. `factor > 1` increases contrast.
+/// Contrast adjustment based on image mean.
+/// `factor = 1.0` returns the original image, `factor = 0.0` returns a solid gray image.
 pub fn adjust_contrast(img : Image, factor : Double) -> Image {
+  let mut sum = 0
+  let n = img.h * img.w
+  for i = 0; i < n; i = i + 1 {
+    let o = i * 4
+    sum = sum + luma(img.data[o], img.data[o + 1], img.data[o + 2])
+  }
+  let mean = sum.to_double() / n.to_double()
   apply_rgb_lut(
     img,
     Array::makei(256, fn(i) {
-      round_byte((i.to_double() - 128.0) * factor + 128.0)
+      round_byte(mean * (1.0 - factor) + i.to_double() * factor)
     }),
   )
 }
@@ -101,4 +113,31 @@ pub fn auto_contrast(img : Image, cutoff : Int) -> Image {
     img,
     Array::makei(256, fn(i) { round_byte((i - lo).to_double() * span) }),
   )
+}
+
+///|
+/// Standardize the image to zero mean and unit standard deviation.
+/// Returns a 2D array of `Float` values (one per pixel, based on luma).
+pub fn standardize(img : Image) -> Array[Array[Double]] {
+  let n = img.h * img.w
+  let mut sum = 0.0
+  let mut sum2 = 0.0
+  for i = 0; i < n; i = i + 1 {
+    let o = i * 4
+    let v = luma(img.data[o], img.data[o + 1], img.data[o + 2]).to_double()
+    sum = sum + v
+    sum2 = sum2 + v * v
+  }
+  let mean = sum / n.to_double()
+  let variance = sum2 / n.to_double() - mean * mean
+  let std = if variance > 0.0 { variance.sqrt() } else { 1.0 }
+  let out = Array::makei(img.h, fn(_i) { Array::make(img.w, 0.0) })
+  for y = 0; y < img.h; y = y + 1 {
+    for x = 0; x < img.w; x = x + 1 {
+      let o = img.offset(y, x)
+      let v = luma(img.data[o], img.data[o + 1], img.data[o + 2]).to_double()
+      out[y][x] = (v - mean) / std
+    }
+  }
+  out
 }
