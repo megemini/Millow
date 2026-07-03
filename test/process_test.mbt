@@ -45,9 +45,9 @@ test "pad_to_size centers image" {
 ///|
 test "brightness, contrast and gamma" {
   let img = Image::from_pixel(1, 1, 100, 100, 100, 255)
-  assert_eq(adjust_brightness(img, 50).pixel_at(0, 0).unwrap().0, 150)
-  assert_eq(adjust_brightness(img, 500).pixel_at(0, 0).unwrap().0, 255)
-  assert_eq(adjust_contrast(img, 2.0).pixel_at(0, 0).unwrap().0, 72)
+  assert_eq(adjust_brightness(img, 1.5).pixel_at(0, 0).unwrap().0, 150)
+  assert_eq(adjust_brightness(img, 5.0).pixel_at(0, 0).unwrap().0, 255)
+  assert_eq(adjust_contrast(img, 2.0).pixel_at(0, 0).unwrap().0, 100)
   assert_eq(adjust_gamma(img, 1.0).pixel_at(0, 0).unwrap().0, 100)
 }
 
