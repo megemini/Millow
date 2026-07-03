@@ -157,3 +157,70 @@ pub fn Image::for_each_pixel(
     }
   }
 }
+
+///|
+/// Build an image from four channel arrays. Alpha defaults to fully opaque
+/// when `None`.
+pub fn Image::from_channels(
+  r : Array[Byte],
+  g : Array[Byte],
+  b : Array[Byte],
+  a : Array[Byte]?,
+) -> Image raise ImageError {
+  merge_channels(r, g, b, a)
+}
+
+///|
+/// Read pixel at flat byte offset `idx` without bounds checking.
+pub fn Image::pixel_at_unchecked(
+  self : Image,
+  idx : Int,
+) -> (Byte, Byte, Byte, Byte) {
+  let o = idx * 4
+  (self.data[o], self.data[o + 1], self.data[o + 2], self.data[o + 3])
+}
+
+///|
+/// Write pixel at flat byte offset `idx` without bounds checking.
+pub fn Image::pixel_set_unchecked(
+  self : Image,
+  idx : Int,
+  r : Byte,
+  g : Byte,
+  b : Byte,
+  a : Byte,
+) -> Unit {
+  let o = idx * 4
+  self.data[o] = r
+  self.data[o + 1] = g
+  self.data[o + 2] = b
+  self.data[o + 3] = a
+}
+
+///|
+/// Iterate over every pixel and produce a new image from the transformed
+/// values returned by `f`.
+pub fn Image::for_each_pixel_mut(
+  self : Image,
+  f : (Int, Int, Byte, Byte, Byte, Byte) -> (Byte, Byte, Byte, Byte),
+) -> Image {
+  let data = Array::make(self.data.length(), (0 : Byte))
+  for y = 0; y < self.h; y = y + 1 {
+    for x = 0; x < self.w; x = x + 1 {
+      let o = self.offset(y, x)
+      let (r, g, b, a) = f(
+        y,
+        x,
+        self.data[o],
+        self.data[o + 1],
+        self.data[o + 2],
+        self.data[o + 3],
+      )
+      data[o] = r
+      data[o + 1] = g
+      data[o + 2] = b
+      data[o + 3] = a
+    }
+  }
+  { data, h: self.h, w: self.w }
+}
