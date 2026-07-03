@@ -80,9 +80,8 @@ fn mag_image(gx : Array[Array[Float]], gy : Array[Array[Float]]) -> Image {
 ///|
 /// Sobel horizontal gradient (per-pixel response).
 pub fn sobel_x(img : Image) -> Array[Array[Float]] {
-  let smoothed = gaussian_blur(img, 1.0)
   grad(
-    smoothed,
+    img,
     [[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]],
     Reflect,
   )
@@ -91,9 +90,8 @@ pub fn sobel_x(img : Image) -> Array[Array[Float]] {
 ///|
 /// Sobel vertical gradient (per-pixel response).
 pub fn sobel_y(img : Image) -> Array[Array[Float]] {
-  let smoothed = gaussian_blur(img, 1.0)
   grad(
-    smoothed,
+    img,
     [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]],
     Reflect,
   )
@@ -108,14 +106,13 @@ pub fn sobel(img : Image) -> Image {
 ///|
 /// Prewitt edge magnitude (grayscale image).
 pub fn prewitt(img : Image) -> Image {
-  let smoothed = gaussian_blur(img, 1.0)
   let gx = grad(
-    smoothed,
+    img,
     [[-1.0, 0.0, 1.0], [-1.0, 0.0, 1.0], [-1.0, 0.0, 1.0]],
     Reflect,
   )
   let gy = grad(
-    smoothed,
+    img,
     [[-1.0, -1.0, -1.0], [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]],
     Reflect,
   )
@@ -125,14 +122,13 @@ pub fn prewitt(img : Image) -> Image {
 ///|
 /// Scharr edge magnitude (grayscale image).
 pub fn scharr(img : Image) -> Image {
-  let smoothed = gaussian_blur(img, 1.0)
   let gx = grad(
-    smoothed,
+    img,
     [[-3.0, 0.0, 3.0], [-10.0, 0.0, 10.0], [-3.0, 0.0, 3.0]],
     Reflect,
   )
   let gy = grad(
-    smoothed,
+    img,
     [[-3.0, -10.0, -3.0], [0.0, 0.0, 0.0], [3.0, 10.0, 3.0]],
     Reflect,
   )
@@ -142,9 +138,8 @@ pub fn scharr(img : Image) -> Image {
 ///|
 /// Laplacian edge response (absolute value, grayscale image).
 pub fn laplacian(img : Image) -> Image {
-  let smoothed = gaussian_blur(img, 1.0)
   let g = grad(
-    smoothed,
+    img,
     [[0.0, 1.0, 0.0], [1.0, -4.0, 1.0], [0.0, 1.0, 0.0]],
     Reflect,
   )

@@ -16,35 +16,89 @@ fn resize_nearest(img : Image, dst_h : Int, dst_w : Int) -> Image {
 }
 
 ///|
-/// Bilinear resampling.
+/// Bilinear filter weight: 1 - |x| for |x| < 1, else 0.
+fn bilinear_filter(x : Double) -> Double {
+  let ax = if x < 0.0 { -x } else { x }
+  if ax < 1.0 {
+    1.0 - ax
+  } else {
+    0.0
+  }
+}
+
+///|
+/// Precompute bilinear weights for one axis.
+fn precompute_bilinear_weights(
+  src_size : Int,
+  dst_size : Int,
+) -> Array[(Array[Double], Int, Int)] {
+  let scale = src_size.to_double() / dst_size.to_double()
+  let support = if scale < 1.0 {
+    1.0
+  } else {
+    scale
+  }
+  let inv_fs = 1.0 / support
+  let result = Array::make(dst_size, ([], 0, 0))
+  for i = 0; i < dst_size; i = i + 1 {
+    let center = (i.to_double() + 0.5) * scale
+    let xmin = (center - support + 0.5).floor().to_int().max(0)
+    let xmax = (center + support + 0.5).ceil().to_int().min(src_size)
+    let n = xmax - xmin
+    let weights = Array::make(n, 0.0)
+    let mut ww = 0.0
+    for j = 0; j < n; j = j + 1 {
+      let w = bilinear_filter(((xmin + j).to_double() - center + 0.5) * inv_fs)
+      weights[j] = w
+      ww = ww + w
+    }
+    if ww > 0.0 {
+      for j = 0; j < n; j = j + 1 {
+        weights[j] = weights[j] / ww
+      }
+    }
+    result[i] = (weights, xmin, xmax)
+  }
+  result
+}
+
+///|
+/// Bilinear resampling (separable, matches Pillow).
 fn resize_bilinear(img : Image, dst_h : Int, dst_w : Int) -> Image {
   let out = Image::new(dst_h, dst_w)
   if img.is_empty() || dst_h == 0 || dst_w == 0 {
     return out
   }
-  let sh = img.h.to_double()
-  let sw = img.w.to_double()
-  let dh = dst_h.to_double()
-  let dw = dst_w.to_double()
-  for y = 0; y < dst_h; y = y + 1 {
-    let fy = clampd((y.to_double() + 0.5) * sh / dh - 0.5, 0.0, sh - 1.0)
-    let y0 = @math.floor(fy).to_int()
-    let y1 = clampi(y0 + 1, 0, img.h - 1)
-    let wy = fy - y0.to_double()
-    for x = 0; x < dst_w; x = x + 1 {
-      let fx = clampd((x.to_double() + 0.5) * sw / dw - 0.5, 0.0, sw - 1.0)
-      let x0 = @math.floor(fx).to_int()
-      let x1 = clampi(x0 + 1, 0, img.w - 1)
-      let wx = fx - x0.to_double()
-      let oo = out.offset(y, x)
+  let h = img.h
+  let w = img.w
+  // Horizontal pass: src (h, w, 4) -> temp (h, dst_w, 4)
+  let x_weights = precompute_bilinear_weights(w, dst_w)
+  let temp = Array::make(h * dst_w * 4, 0.0)
+  for y = 0; y < h; y = y + 1 {
+    for dx = 0; dx < dst_w; dx = dx + 1 {
+      let (wts, xmin, xmax) = x_weights[dx]
       for c = 0; c < 4; c = c + 1 {
-        let v00 = img.data[img.offset(y0, x0) + c].to_double()
-        let v01 = img.data[img.offset(y0, x1) + c].to_double()
-        let v10 = img.data[img.offset(y1, x0) + c].to_double()
-        let v11 = img.data[img.offset(y1, x1) + c].to_double()
-        let top = v00 * (1.0 - wx) + v01 * wx
-        let bot = v10 * (1.0 - wx) + v11 * wx
-        out.data[oo + c] = round_byte(top * (1.0 - wy) + bot * wy)
+        let mut acc = 0.0
+        for j = 0; j < xmax - xmin; j = j + 1 {
+          let sx = xmin + j
+          acc = acc + wts[j] * img.data[(y * w + sx) * 4 + c].to_double()
+        }
+        temp[(y * dst_w + dx) * 4 + c] = acc
+      }
+    }
+  }
+  // Vertical pass: temp (h, dst_w, 4) -> final (dst_h, dst_w, 4)
+  let y_weights = precompute_bilinear_weights(h, dst_h)
+  for dy = 0; dy < dst_h; dy = dy + 1 {
+    let (wts, ymin, ymax) = y_weights[dy]
+    for x = 0; x < dst_w; x = x + 1 {
+      for c = 0; c < 4; c = c + 1 {
+        let mut acc = 0.0
+        for j = 0; j < ymax - ymin; j = j + 1 {
+          let sy = ymin + j
+          acc = acc + wts[j] * temp[(sy * dst_w + x) * 4 + c]
+        }
+        out.data[(dy * dst_w + x) * 4 + c] = round_byte(acc)
       }
     }
   }

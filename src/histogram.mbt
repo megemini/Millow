@@ -38,6 +38,7 @@ pub fn histogram_color(img : Image) -> Array[Array[Int]] {
 
 ///|
 /// Histogram equalization applied to each RGB channel independently.
+/// Uses normalized CDF mapping (matches skimage).
 pub fn equalize_histogram(img : Image) -> Image {
   let out = Image::new(img.h, img.w)
   let total = img.h * img.w
@@ -50,24 +51,16 @@ pub fn equalize_histogram(img : Image) -> Image {
       let v = img.data[i * 4 + c].to_int()
       hist[v] = hist[v] + 1
     }
-    let cdf = Array::make(256, 0)
+    // Compute normalized CDF
+    let cdf = Array::make(256, 0.0)
     let mut acc = 0
     for i = 0; i < 256; i = i + 1 {
       acc = acc + hist[i]
-      cdf[i] = acc
+      cdf[i] = acc.to_double() / total.to_double()
     }
-    let mut cdf_min_idx = 0
-    while cdf_min_idx < 256 && hist[cdf_min_idx] == 0 {
-      cdf_min_idx = cdf_min_idx + 1
-    }
-    let cdf_min = if cdf_min_idx < 256 { cdf[cdf_min_idx] } else { 0 }
-    let denom = acc - cdf_min
+    // Map using normalized CDF
     let lut = Array::makei(256, fn(i) {
-      if denom <= 0 {
-        i.to_byte()
-      } else {
-        round_byte((cdf[i] - cdf_min).to_double() * 255.0 / denom.to_double())
-      }
+      round_byte(cdf[i] * 255.0)
     })
     for i = 0; i < total; i = i + 1 {
       let v = img.data[i * 4 + c].to_int()

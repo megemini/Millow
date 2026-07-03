@@ -258,32 +258,10 @@ def resize_nearest(img, dst_h, dst_w):
 
 
 def resize_bilinear(img, dst_h, dst_w):
-    """Custom bilinear resize (matching millow)."""
-    h, w = img.shape[:2]
-    if h == 0 or w == 0 or dst_h == 0 or dst_w == 0:
-        return np.zeros((dst_h, dst_w, 4), dtype=np.uint8)
-    out = np.zeros((dst_h, dst_w, 4), dtype=np.uint8)
-    sh = float(h)
-    sw = float(w)
-    for y in range(dst_h):
-        fy = max(0.0, min(sh - 1.0, (float(y) + 0.5) * sh / float(dst_h) - 0.5))
-        y0 = int(math.floor(fy))
-        y1 = clampi(y0 + 1, 0, h - 1)
-        wy = fy - float(y0)
-        for x in range(dst_w):
-            fx = max(0.0, min(sw - 1.0, (float(x) + 0.5) * sw / float(dst_w) - 0.5))
-            x0 = int(math.floor(fx))
-            x1 = clampi(x0 + 1, 0, w - 1)
-            wx = fx - float(x0)
-            for c in range(4):
-                v00 = float(img[y0, x0, c])
-                v01 = float(img[y0, x1, c])
-                v10 = float(img[y1, x0, c])
-                v11 = float(img[y1, x1, c])
-                top = v00 * (1.0 - wx) + v01 * wx
-                bot = v10 * (1.0 - wx) + v11 * wx
-                out[y, x, c] = round_byte(top * (1.0 - wy) + bot * wy)
-    return out
+    """Use Pillow Image.resize(resample=Image.BILINEAR)."""
+    pil = numpy_to_pil(img)
+    resized = pil.resize((dst_w, dst_h), resample=Image.BILINEAR)
+    return pil_to_numpy(resized)
 
 
 # ---------------------------------------------------------------------------
@@ -401,37 +379,13 @@ def threshold_otsu(img):
 
 
 def equalize_histogram(img):
-    """Histogram equalization (matching millow)."""
-    h, w = img.shape[:2]
-    total = h * w
+    """Histogram equalization using skimage."""
+    from skimage import exposure
     out = img.copy()
     for c in range(3):
-        hist = [0] * 256
-        for i in range(total):
-            y = i // w
-            x = i % w
-            v = int(img[y, x, c])
-            hist[v] += 1
-        cdf = [0] * 256
-        acc = 0
-        for i in range(256):
-            acc += hist[i]
-            cdf[i] = acc
-        cdf_min_idx = 0
-        while cdf_min_idx < 256 and hist[cdf_min_idx] == 0:
-            cdf_min_idx += 1
-        cdf_min = cdf[cdf_min_idx] if cdf_min_idx < 256 else 0
-        denom = acc - cdf_min
-        lut = [0] * 256
-        for i in range(256):
-            if denom <= 0:
-                lut[i] = i
-            else:
-                lut[i] = round_byte((cdf[i] - cdf_min) * 255.0 / float(denom))
-        for i in range(total):
-            y = i // w
-            x = i % w
-            out[y, x, c] = lut[int(img[y, x, c])]
+        channel = img[..., c]
+        equalized = exposure.equalize_hist(channel)
+        out[..., c] = (equalized * 255).astype(np.uint8)
     return out
 
 
@@ -658,47 +612,41 @@ def _mag_image(gx, gy):
 
 def sobel(img):
     """Sobel edge detection (matching millow)."""
-    smoothed = gaussian_blur(img, 1.0)
-    gx = _grad(smoothed, [[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]])
-    gy = _grad(smoothed, [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]])
+    gx = _grad(img, [[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]])
+    gy = _grad(img, [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]])
     return _mag_image(gx, gy)
 
 
 def sobel_x(img):
     """Sobel horizontal gradient (matching millow)."""
-    smoothed = gaussian_blur(img, 1.0)
-    gx = _grad(smoothed, [[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]])
+    gx = _grad(img, [[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]])
     return gx
 
 
 def sobel_y(img):
     """Sobel vertical gradient (matching millow)."""
-    smoothed = gaussian_blur(img, 1.0)
-    gy = _grad(smoothed, [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]])
+    gy = _grad(img, [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]])
     return gy
 
 
 def prewitt(img):
     """Prewitt edge detection (matching millow)."""
-    smoothed = gaussian_blur(img, 1.0)
-    gx = _grad(smoothed, [[-1.0, 0.0, 1.0], [-1.0, 0.0, 1.0], [-1.0, 0.0, 1.0]])
-    gy = _grad(smoothed, [[-1.0, -1.0, -1.0], [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]])
+    gx = _grad(img, [[-1.0, 0.0, 1.0], [-1.0, 0.0, 1.0], [-1.0, 0.0, 1.0]])
+    gy = _grad(img, [[-1.0, -1.0, -1.0], [0.0, 0.0, 0.0], [1.0, 1.0, 1.0]])
     return _mag_image(gx, gy)
 
 
 def scharr(img):
     """Scharr edge detection (matching millow)."""
-    smoothed = gaussian_blur(img, 1.0)
-    gx = _grad(smoothed, [[-3.0, 0.0, 3.0], [-10.0, 0.0, 10.0], [-3.0, 0.0, 3.0]])
-    gy = _grad(smoothed, [[-3.0, -10.0, -3.0], [0.0, 0.0, 0.0], [3.0, 10.0, 3.0]])
+    gx = _grad(img, [[-3.0, 0.0, 3.0], [-10.0, 0.0, 10.0], [-3.0, 0.0, 3.0]])
+    gy = _grad(img, [[-3.0, -10.0, -3.0], [0.0, 0.0, 0.0], [3.0, 10.0, 3.0]])
     return _mag_image(gx, gy)
 
 
 def laplacian(img):
     """Laplacian edge detection (matching millow)."""
-    smoothed = gaussian_blur(img, 1.0)
     h, w = img.shape[:2]
-    g = _grad(smoothed, [[0.0, 1.0, 0.0], [1.0, -4.0, 1.0], [0.0, 1.0, 0.0]])
+    g = _grad(img, [[0.0, 1.0, 0.0], [1.0, -4.0, 1.0], [0.0, 1.0, 0.0]])
     out = np.zeros((h, w, 4), dtype=np.uint8)
     max_val = 0.0
     for y in range(h):
