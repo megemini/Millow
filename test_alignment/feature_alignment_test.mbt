@@ -1,6 +1,8 @@
 // Feature detection alignment tests — corner detection, HOG, LBP.
-// corner_harris/corner_shi_tomasi: Reference: skimage.feature
-// hog/lbp: custom implementation (differs from skimage)
+// All references below are numpy implementations matching millow's behavior
+// (millow uses Constant(0) border for gradients and Gaussian smoothing, which
+// differs from skimage's Gaussian-weighted structure tensors).
+// hog/lbp: custom implementation (differs from skimage).
 
 ///|
 test "align corner_harris" {
@@ -18,14 +20,14 @@ test "align corner_shi_tomasi" {
 test "align hog" {
   let img = img_from_ints(4, 4, in_grad_4x4)
   let actual = hog(img, 2, 1, 9)
-  assert_eq(actual.length(), exp_hog.length())
+  assert_arr_close_double(actual, exp_hog, 1.0e-6)
 }
 
 ///|
 test "align lbp" {
   let img = img_from_ints(4, 4, in_grad_4x4)
   let actual = lbp(img, 1, 8)
-  assert_eq(actual.length(), exp_lbp.length())
+  assert_arr_eq(actual, exp_lbp)
 }
 
 ///|

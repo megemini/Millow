@@ -1,7 +1,8 @@
-// Edge detector alignment tests. The gradient magnitude uses sqrt, so
-// tolerance 1 for floating-point rounding. sobel_x/sobel_y return float
-// arrays compared with a small tolerance.
-// TODO: 这些测试使用 numpy 拟合 millow 的实现方式生成测试数据
+// Edge detector alignment tests.
+// Reference: numpy implementations matching millow's behavior — millow uses
+// Reflect border and max-normalization for gradient magnitudes (differs from
+// skimage which uses normalized [0,1] gradients without max-normalization).
+// Tolerance 2 absorbs sqrt/exp floating-point rounding differences.
 
 ///|
 test "align sobel magnitude" {

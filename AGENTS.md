@@ -121,16 +121,21 @@ millow/
   differs from skimage's default `truncate=4.0`.
 - `resize`:
   - **Nearest**: `sy = clampi(y * h / dst_h, 0, h-1)` (integer division).
-  - **Bilinear / Bicubic**: centre-aligned coordinates
+  - **Bilinear**: Pillow-style separable convolution. Weights are precomputed
+    per axis via `precompute_bilinear_weights` (triangle filter `1 - |x|` on a
+    support of `max(1, scale)`), then applied as a horizontal pass followed by
+    a vertical pass. This matches Pillow's `Image.resize` bilinear output.
+  - **Bicubic**: centre-aligned coordinates
     `fy = clampd((y + 0.5) * h / dst_h - 0.5, 0, h-1)`, then interpolate with
-    replicate border. PIL uses a different coordinate mapping, so bilinear
-    output may differ by ±1 at edges.
+    replicate border using the cubic kernel (a = -0.5).
 - `convolve(img, kernel, normalize)`: `normalize=true` divides by the kernel
   sum (if non-zero); `normalize=false` divides by 1.0. The kernel anchor is
   the centre (`kh/2, kw/2`).
-- Edge detectors (`sobel`, `prewitt`, `scharr`) compute the gradient on **luma**
-  and emit `round_byte(sqrt(gx² + gy²))` into RGB. `laplacian` emits
-  `round_byte(|value|)`.
+- Edge detectors (`sobel`, `prewitt`, `scharr`, `laplacian`) compute the
+  gradient on **luma** using **`Reflect`** border handling (an exception to the
+  default replicate rule above), then **max-normalize** the magnitude
+  (`scale = 255 / max_val`) before emitting to RGB. `sobel`/`prewitt`/`scharr`
+  use `sqrt(gx² + gy²)`; `laplacian` uses `|value|`.
 - Morphology (`erode`/`dilate`) takes min/max over the structuring element on
   each RGB channel independently. `Kernel::Cross(n)` is a plus shape,
   `Kernel::Square(n)` is the full `(2r+1)²` box.
@@ -145,7 +150,7 @@ millow/
 ```bash
 source /home/shun/venv310/bin/activate   # project Python env
 python test_alignment/generate_fixtures.py  # regenerates fixtures_test.mbt
-moon test                                   # all 79 tests must pass
+moon test                                   # all tests must pass
 ```
 
 - `generate_fixtures.py` holds the **reference implementations** — when you

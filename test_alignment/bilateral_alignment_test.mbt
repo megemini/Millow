@@ -1,5 +1,7 @@
 // Bilateral filter alignment tests — edge-preserving smoothing.
-// TODO: 这些测试使用 numpy 拟合 millow 的实现方式生成测试数据
+// Reference: numpy implementation matching millow's behavior — millow uses
+// Reflect border and RGB normalized to [0,1] for color distance (differs from
+// skimage's denoise_bilateral in border handling and sigma_color semantics).
 
 ///|
 test "align bilateral_filter" {

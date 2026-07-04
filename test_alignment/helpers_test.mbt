@@ -77,3 +77,17 @@ fn assert_arr2_close_double(
     }
   }
 }
+
+///|
+/// Compare a 1-D `Array[Double]` (e.g. HOG descriptor) with tolerance.
+fn assert_arr_close_double(
+  actual : Array[Double],
+  expected : Array[Double],
+  tol : Double,
+) -> Unit raise {
+  assert_eq(actual.length(), expected.length())
+  for i = 0; i < actual.length(); i = i + 1 {
+    let d = (actual[i] - expected[i]).abs()
+    assert_true(d <= tol)
+  }
+}
