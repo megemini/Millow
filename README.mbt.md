@@ -11,16 +11,15 @@ Run `moon run cmd/main` to generate the following effects from
 
 | Input | `to_grayscale` | `tint(100,150,200)` | `gaussian_blur(σ=2)` |
 |:---:|:---:|:---:|:---:|
-| ![input](docs/images/lena_ai_generated.png) | ![grayscale](docs/images/demo_grayscale.jpg) | ![tint](docs/images/demo_tint.jpg) | ![blur](docs/images/demo_gaussian_blur.jpg) |
+| <img src="docs/images/lena_ai_generated.png" width="200"> | <img src="docs/images/demo_grayscale.jpg" width="200"> | <img src="docs/images/demo_tint.jpg" width="200"> | <img src="docs/images/demo_gaussian_blur.jpg" width="200"> |
 
 | `sharpen(1.0)` | `sobel` | `equalize_histogram` | `threshold_otsu` |
 |:---:|:---:|:---:|:---:|
-| ![sharpen](docs/images/demo_sharpen.jpg) | ![sobel](docs/images/demo_sobel.jpg) | ![equalize](docs/images/demo_equalize_histogram.jpg) | ![otsu](docs/images/demo_threshold_otsu.jpg) |
+| <img src="docs/images/demo_sharpen.jpg" width="200"> | <img src="docs/images/demo_sobel.jpg" width="200"> | <img src="docs/images/demo_equalize_histogram.jpg" width="200"> | <img src="docs/images/demo_threshold_otsu.jpg" width="200"> |
 
 | `rotate_any(45°)` | `find_contours` | `pipeline` |
 |:---:|:---:|:---:|
-| ![rotate](docs/images/demo_rotate_45.jpg) | ![contours](docs/images/demo_contours.jpg) |
- ![pipeline](docs/images/demo_pipeline.jpg) |
+| <img src="docs/images/demo_rotate_45.jpg" width="200"> | <img src="docs/images/demo_contours.jpg" width="200"> | <img src="docs/images/demo_pipeline.jpg" width="200"> |
 
 ## Features
 
