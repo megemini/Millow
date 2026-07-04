@@ -9,6 +9,7 @@ pub using @millow {
   type Kernel,
   type PadMode,
   type PpmEncoder,
+  type Augmentation,
   type BorderMode,
 
   // Channels & color
@@ -100,6 +101,7 @@ pub using @millow {
   augment_random_choice,
   random_noise_gaussian,
   random_noise_salt_pepper,
+  process_batch,
 
   // Thresholding
   threshold_sauvola,

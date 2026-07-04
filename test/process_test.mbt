@@ -5,8 +5,27 @@ test "resize nearest and bilinear keep size" {
   @debug.assert_eq(up.shape(), (8, 8))
   assert_eq(up.pixel_at(3, 3).unwrap().0, 80)
   let down = resize(img, 2, 2, Bilinear)
-  @debug.assert_eq(down.shape(), (2, 2))
+  assert_eq(down.height(), 2)
+  assert_eq(down.width(), 2)
   assert_eq(down.pixel_at(0, 0).unwrap().0, 80)
+}
+
+///|
+test "resize bicubic keeps size and uniform colour" {
+  let img = Image::from_pixel(4, 4, 80, 80, 80, 255)
+  let up = resize(img, 8, 8, Bicubic)
+  assert_eq(up.height(), 8)
+  assert_eq(up.width(), 8)
+  // Bicubic of a uniform image should stay uniform (within rounding).
+  let (r, g, b, _) = up.pixel_at(0, 0).unwrap()
+  assert_true((r - 80).to_int() <= 2)
+  assert_true((g - 80).to_int() <= 2)
+  assert_true((b - 80).to_int() <= 2)
+  let down = resize(img, 2, 2, Bicubic)
+  assert_eq(down.height(), 2)
+  assert_eq(down.width(), 2)
+  let (r2, _, _, _) = down.pixel_at(1, 1).unwrap()
+  assert_true((r2 - 80).to_int() <= 2)
 }
 
 ///|

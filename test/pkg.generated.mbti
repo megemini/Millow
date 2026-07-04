@@ -104,6 +104,8 @@ pub fn pad_to_size(@src.Image, Int, Int, @src.PadMode) -> @src.Image
 
 pub fn prewitt(@src.Image) -> @src.Image
 
+pub fn process_batch(Array[@src.Image], (@src.Image) -> @src.Image) -> Array[@src.Image]
+
 pub fn psnr(@src.Image, @src.Image) -> Double
 
 pub fn random_noise_gaussian(@src.Image, Double) -> @src.Image
@@ -169,6 +171,8 @@ pub fn unsharp_mask(@src.Image, Double, Double, Byte) -> @src.Image
 // Types and methods
 
 // Type aliases
+pub using @src {type Augmentation}
+
 pub using @src {type BorderMode}
 
 pub using @src {type Image}

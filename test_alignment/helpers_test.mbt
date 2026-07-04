@@ -79,6 +79,21 @@ fn assert_arr2_close_double(
 }
 
 ///|
+/// Compare an `Array[Array[Int]]` (e.g. connected component labels) exactly.
+fn assert_arr2_eq(
+  actual : Array[Array[Int]],
+  expected : Array[Array[Int]],
+) -> Unit raise {
+  assert_eq(actual.length(), expected.length())
+  for y = 0; y < actual.length(); y = y + 1 {
+    assert_eq(actual[y].length(), expected[y].length())
+    for x = 0; x < actual[y].length(); x = x + 1 {
+      assert_eq(actual[y][x], expected[y][x])
+    }
+  }
+}
+
+///|
 /// Compare a 1-D `Array[Double]` (e.g. HOG descriptor) with tolerance.
 fn assert_arr_close_double(
   actual : Array[Double],

@@ -1129,28 +1129,67 @@ def find_contours(img):
 
 
 def moments(img):
-    """Image moments using skimage.measure.moments."""
-    gray = luma(img[..., 0], img[..., 1], img[..., 2]).astype(float) / 255.0
-    m = measure.moments(gray, order=3)
-    return [
-        float(m[0, 0]),
-        float(m[1, 0]),
-        float(m[0, 1]),
-        float(m[2, 0]),
-        float(m[1, 1]),
-        float(m[0, 2]),
-        float(m[3, 0]),
-        float(m[2, 1]),
-        float(m[1, 2]),
-        float(m[0, 3]),
-    ]
+    """Image moments matching millow's implementation (raw luma 0-255)."""
+    gray = luma(img[..., 0], img[..., 1], img[..., 2]).astype(float)
+    h, w = gray.shape
+    m = [0.0] * 10
+    for y in range(h):
+        for x in range(w):
+            v = gray[y, x]
+            m[0] += v
+            m[1] += y * v
+            m[2] += x * v
+            m[3] += y * y * v
+            m[4] += y * x * v
+            m[5] += x * x * v
+            m[6] += y * y * y * v
+            m[7] += y * y * x * v
+            m[8] += y * x * x * v
+            m[9] += x * x * x * v
+    return [float(v) for v in m]
 
 
 def hu_moments(img):
-    """Hu moments using skimage.measure.moments_hu."""
-    gray = luma(img[..., 0], img[..., 1], img[..., 2]).astype(float) / 255.0
-    hu = measure.moments_hu(measure.moments(gray, order=3))
-    return [float(v) for v in hu]
+    """Hu moments matching millow's implementation (raw luma 0-255)."""
+    m = moments(img)
+    m00 = m[0]
+    if m00 == 0.0:
+        return [0.0] * 7
+    yb = m[1] / m00
+    xb = m[2] / m00
+    gray = luma(img[..., 0], img[..., 1], img[..., 2]).astype(float)
+    h, w = gray.shape
+    mu20 = mu11 = mu02 = mu30 = mu21 = mu12 = mu03 = 0.0
+    for y in range(h):
+        for x in range(w):
+            v = gray[y, x]
+            dy = y - yb
+            dx = x - xb
+            mu20 += dy * dy * v
+            mu11 += dy * dx * v
+            mu02 += dx * dx * v
+            mu30 += dy * dy * dy * v
+            mu21 += dy * dy * dx * v
+            mu12 += dy * dx * dx * v
+            mu03 += dx * dx * dx * v
+    n20 = mu20 / (m00 * m00)
+    n11 = mu11 / (m00 * m00)
+    n02 = mu02 / (m00 * m00)
+    n30 = mu30 / (m00 * m00 * m00 ** 0.5)
+    n21 = mu21 / (m00 * m00 * m00 ** 0.5)
+    n12 = mu12 / (m00 * m00 * m00 ** 0.5)
+    n03 = mu03 / (m00 * m00 * m00 ** 0.5)
+    h1 = n20 + n02
+    h2 = (n20 - n02) ** 2 + 4.0 * n11 * n11
+    h3 = (n30 - 3.0 * n12) ** 2 + (3.0 * n21 - n03) ** 2
+    h4 = (n30 + n12) ** 2 + (n21 + n03) ** 2
+    h5 = (n30 - 3.0 * n12) * (n30 + n12) * ((n30 + n12) ** 2 - 3.0 * (n21 + n03) ** 2) + \
+         (3.0 * n21 - n03) * (n21 + n03) * (3.0 * (n30 + n12) ** 2 - (n21 + n03) ** 2)
+    h6 = (n20 - n02) * ((n30 + n12) ** 2 - (n21 + n03) ** 2) + \
+         4.0 * n11 * (n30 + n12) * (n21 + n03)
+    h7 = (3.0 * n21 - n03) * (n30 + n12) * ((n30 + n12) ** 2 - 3.0 * (n21 + n03) ** 2) - \
+         (n30 - 3.0 * n12) * (n21 + n03) * (3.0 * (n30 + n12) ** 2 - (n21 + n03) ** 2)
+    return [float(v) for v in [h1, h2, h3, h4, h5, h6, h7]]
 
 
 # ---------------------------------------------------------------------------

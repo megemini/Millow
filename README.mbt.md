@@ -1,8 +1,12 @@
 # Millow
 
+> **Millow** — **M** (for MoonBit) + **illow** (a nod to Python's [Pillow](https://python-pillow.org/)).
+
 A **zero-FFI, cross-platform image-processing library** for MoonBit. `millow`
 works entirely on in-memory RGBA8 buffers (`Array[Byte]`, laid out `H × W × 4`)
 and builds on every backend: `wasm-gc`, `wasm`, `js`, and `native`.
+
+[中文](README_zh.md) | English
 
 ## Demo
 
@@ -240,6 +244,10 @@ source /home/shun/venv310/bin/activate
 python test_alignment/generate_fixtures.py
 moon test
 ```
+
+## Roadmap
+
+See [docs/roadmap.md](docs/roadmap.md) for the full version plan and upcoming features.
 
 ## License
 
