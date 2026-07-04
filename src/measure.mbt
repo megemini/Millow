@@ -231,8 +231,10 @@ pub fn count_pixels(img : Image, threshold : Byte) -> Int {
 ///|
 /// Raw image moments (m00, m10, m01, m20, m11, m02, m30, m21, m12, m03).
 ///
-/// Each pixel's BT.601 luma is used as the weight. Returns a 10-element array
-/// in that fixed order.
+/// Uses millow's `(y, x)` convention where `m_pq = Σ y^p · x^q · luma`:
+/// the first index `p` is the row (y) exponent, the second `q` is the
+/// column (x) exponent. Each pixel's BT.601 luma is used as the weight.
+/// Returns a 10-element array in the order listed above.
 pub fn moments(img : Image) -> Array[Double] {
   let m = Array::make(10, 0.0)
   for y = 0; y < img.h; y = y + 1 {

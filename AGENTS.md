@@ -88,6 +88,53 @@ millow/
   unchanged from the source pixel unless the operation explicitly transforms
   it (e.g. `flatten_alpha`, `composite_over`).
 
+### Coordinate system
+
+millow uses a **single, uniform coordinate convention** across the entire API.
+Violating it is the most common source of off-by-one and axis-swap bugs.
+
+- **Dimension order**: always `(h, w)` — height first, width second.
+  Examples: `Image::new(h, w)`, `Image::from_pixel(h, w, ...)`,
+  `Image::from_data(data, h, w)`, `resize(img, dst_h, dst_w, interp)`,
+  `crop(img, y, x, h, w)`, `Image::shape() -> (h, w)`.
+
+- **Coordinate order**: always `(y, x)` — row first, column second.
+  `y` is the vertical axis (row), `x` is the horizontal axis (column).
+  Examples: `Image::offset(y, x)`, `Image::pixel_at(y, x)`,
+  `draw_pixel(img, y, x, ...)`, `luma_at(img, y, x)`, `flood_fill(img, y, x, ...)`.
+
+- **Origin**: top-left corner. Pixel `(0, 0)` is the top-left of the image;
+  `y` increases downward, `x` increases rightward.
+
+- **Valid ranges**: `y ∈ [0, h-1]`, `x ∈ [0, w-1]`.
+
+- **Drawing centers**: circle/ellipse centers use `(cy, cx)` order.
+  Example: `draw_circle(img, cy, cx, radius, ...)`,
+  `draw_ellipse(img, cy, cx, ry, rx, ...)`.
+
+- **Translations**: use `(dy, dx)` order.
+  Example: `translate(img, dy, dx, interp)`.
+
+- **Contours**: `find_contours` returns arrays of `(y, x)` tuples.
+
+- **Image moments**: use the `(y, x)` convention where
+  `m_pq = Σ y^p · x^q · luma`. The first index `p` is the row (y) exponent,
+  the second `q` is the column (x) exponent. This differs from some textbook
+  conventions (`m_pq = Σ x^p · y^q`), but Hu moments are invariant to the
+  axis swap, so `hu_moments()` results are unaffected.
+
+- **Loop pattern**: always `for y = 0; y < h; y = y + 1` (outer) /
+  `for x = 0; x < w; x = x + 1` (inner).
+
+- **Note on `rotate_90`/`rotate_270`**: these correctly swap the output
+  dimensions — `Image::new(img.w, img.h)` — because a 90°/270° rotation
+  transposes the image.
+
+- **Note on PPM/PGM format**: the PPM header writes `width height` (e.g.
+  `P6\n640 480\n255\n`) per the Netpbm specification, which is the opposite
+  of millow's internal `(h, w)` order. This is a format requirement, not an
+  inconsistency.
+
 ### Numeric conventions
 
 - **Luma** uses integer BT.601: `(R*77 + G*150 + B*29) >> 8`. Use the

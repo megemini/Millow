@@ -98,6 +98,8 @@ pub fn gaussian_blur(Image, Double) -> Image
 
 pub fn gaussian_blur_double(Array[Array[Double]], Double) -> Array[Array[Double]]
 
+pub fn gaussian_blur_double3(Array[Array[Double]], Array[Array[Double]], Array[Array[Double]], Double) -> (Array[Array[Double]], Array[Array[Double]], Array[Array[Double]])
+
 pub fn gaussian_blur_kernel(Image, Int, Double) -> Image
 
 pub fn get_pixel(Image, Int, Int, BorderMode) -> (Byte, Byte, Byte, Byte)

@@ -1,15 +1,14 @@
 ///|
-/// Harris corner response map.
+/// Compute the Gaussian-weighted structure tensor `(sxx, syy, sxy)` of the
+/// image's luma gradients. Shared by `corner_harris` and `corner_shi_tomasi`.
 ///
-/// Computes the Gaussian-weighted structure tensor of the image's luma
-/// gradients and returns the Harris response `det(M) - k * trace(M)²` per
-/// pixel.
-///
-/// - `k`: Harris sensitivity parameter, typically in the range 0.04–0.06.
-///
-/// Returns an `h × w` array of response values; large positive values
-/// indicate corners.
-pub fn corner_harris(img : Image, k : Double) -> Array[Array[Double]] {
+/// Uses Sobel kernels with `Constant(0,0,0,0)` border (out-of-bounds = luma 0)
+/// and fuses the three Gaussian smoothing passes into a single pair of
+/// separable 1D passes via `gaussian_blur_double3`.
+fn structure_tensor(
+  img : Image,
+  sigma : Double,
+) -> (Array[Array[Double]], Array[Array[Double]], Array[Array[Double]]) {
   let gray = to_grayscale(img)
   let gx = grad_double(
     gray,
@@ -21,25 +20,56 @@ pub fn corner_harris(img : Image, k : Double) -> Array[Array[Double]] {
     [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]],
     Constant(0, 0, 0, 0),
   )
-  let gx2 = Array::makei(img.h, fn(_i) { Array::make(img.w, 0.0) })
-  let gy2 = Array::makei(img.h, fn(_i) { Array::make(img.w, 0.0) })
-  let gxy = Array::makei(img.h, fn(_i) { Array::make(img.w, 0.0) })
-  for y = 0; y < img.h; y = y + 1 {
-    for x = 0; x < img.w; x = x + 1 {
-      gx2[y][x] = gx[y][x] * gx[y][x]
-      gy2[y][x] = gy[y][x] * gy[y][x]
-      gxy[y][x] = gx[y][x] * gy[y][x]
+  let h = img.h
+  let w = img.w
+  let gx2 = Array::makei(h, fn(_i) { Array::make(w, 0.0) })
+  let gy2 = Array::makei(h, fn(_i) { Array::make(w, 0.0) })
+  let gxy = Array::makei(h, fn(_i) { Array::make(w, 0.0) })
+  for y = 0; y < h; y = y + 1 {
+    let gx_row = gx[y]
+    let gy_row = gy[y]
+    let gx2_row = gx2[y]
+    let gy2_row = gy2[y]
+    let gxy_row = gxy[y]
+    for x = 0; x < w; x = x + 1 {
+      let gxi = gx_row[x]
+      let gyi = gy_row[x]
+      gx2_row[x] = gxi * gxi
+      gy2_row[x] = gyi * gyi
+      gxy_row[x] = gxi * gyi
     }
   }
-  let sxx = gaussian_blur_double(gx2, 1.0)
-  let syy = gaussian_blur_double(gy2, 1.0)
-  let sxy = gaussian_blur_double(gxy, 1.0)
-  let out = Array::makei(img.h, fn(_i) { Array::make(img.w, 0.0) })
-  for y = 0; y < img.h; y = y + 1 {
-    for x = 0; x < img.w; x = x + 1 {
-      let det = sxx[y][x] * syy[y][x] - sxy[y][x] * sxy[y][x]
-      let trace = sxx[y][x] + syy[y][x]
-      out[y][x] = det - k * trace * trace
+  gaussian_blur_double3(gx2, gy2, gxy, sigma)
+}
+
+///|
+/// Harris corner response map.
+///
+/// Computes the Gaussian-weighted structure tensor of the image's luma
+/// gradients and returns the Harris response `det(M) - k * trace(M)²` per
+/// pixel.
+///
+/// - `k`: Harris sensitivity parameter, typically in the range 0.04–0.06.
+///
+/// Returns an `h × w` array of response values; large positive values
+/// indicate corners.
+pub fn corner_harris(img : Image, k : Double) -> Array[Array[Double]] {
+  let (sxx, syy, sxy) = structure_tensor(img, 1.0)
+  let h = img.h
+  let w = img.w
+  let out = Array::makei(h, fn(_i) { Array::make(w, 0.0) })
+  for y = 0; y < h; y = y + 1 {
+    let sxx_row = sxx[y]
+    let syy_row = syy[y]
+    let sxy_row = sxy[y]
+    let out_row = out[y]
+    for x = 0; x < w; x = x + 1 {
+      let sxx_v = sxx_row[x]
+      let syy_v = syy_row[x]
+      let sxy_v = sxy_row[x]
+      let det = sxx_v * syy_v - sxy_v * sxy_v
+      let trace = sxx_v + syy_v
+      out_row[x] = det - k * trace * trace
     }
   }
   out
@@ -54,39 +84,25 @@ pub fn corner_harris(img : Image, k : Double) -> Array[Array[Double]] {
 /// Returns an `h × w` array of response values; large values indicate
 /// corner-like regions.
 pub fn corner_shi_tomasi(img : Image) -> Array[Array[Double]] {
-  let gray = to_grayscale(img)
-  let gx = grad_double(
-    gray,
-    [[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]],
-    Constant(0, 0, 0, 0),
-  )
-  let gy = grad_double(
-    gray,
-    [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]],
-    Constant(0, 0, 0, 0),
-  )
-  let gx2 = Array::makei(img.h, fn(_i) { Array::make(img.w, 0.0) })
-  let gy2 = Array::makei(img.h, fn(_i) { Array::make(img.w, 0.0) })
-  let gxy = Array::makei(img.h, fn(_i) { Array::make(img.w, 0.0) })
-  for y = 0; y < img.h; y = y + 1 {
-    for x = 0; x < img.w; x = x + 1 {
-      gx2[y][x] = gx[y][x] * gx[y][x]
-      gy2[y][x] = gy[y][x] * gy[y][x]
-      gxy[y][x] = gx[y][x] * gy[y][x]
-    }
-  }
-  let sxx = gaussian_blur_double(gx2, 1.0)
-  let syy = gaussian_blur_double(gy2, 1.0)
-  let sxy = gaussian_blur_double(gxy, 1.0)
-  let out = Array::makei(img.h, fn(_i) { Array::make(img.w, 0.0) })
-  for y = 0; y < img.h; y = y + 1 {
-    for x = 0; x < img.w; x = x + 1 {
-      let trace = sxx[y][x] + syy[y][x]
-      let det = sxx[y][x] * syy[y][x] - sxy[y][x] * sxy[y][x]
+  let (sxx, syy, sxy) = structure_tensor(img, 1.0)
+  let h = img.h
+  let w = img.w
+  let out = Array::makei(h, fn(_i) { Array::make(w, 0.0) })
+  for y = 0; y < h; y = y + 1 {
+    let sxx_row = sxx[y]
+    let syy_row = syy[y]
+    let sxy_row = sxy[y]
+    let out_row = out[y]
+    for x = 0; x < w; x = x + 1 {
+      let sxx_v = sxx_row[x]
+      let syy_v = syy_row[x]
+      let sxy_v = sxy_row[x]
+      let trace = sxx_v + syy_v
+      let det = sxx_v * syy_v - sxy_v * sxy_v
       let disc = (trace * trace - 4.0 * det).max(0.0).sqrt()
       let l1 = (trace + disc) / 2.0
       let l2 = (trace - disc) / 2.0
-      out[y][x] = l1.min(l2)
+      out_row[x] = l1.min(l2)
     }
   }
   out
@@ -111,38 +127,60 @@ pub fn hog(
   block_size : Int,
   nbins : Int,
 ) -> Array[Double] {
+  let h = img.h
+  let w = img.w
+  // Build a flat luma array directly. Since `to_grayscale` produces an image
+  // whose R==G==B==luma, we read the R channel of the grayscale image to
+  // avoid recomputing luma per gradient sample.
   let gray = to_grayscale(img)
-  // Compute gradients
-  let gx = Array::makei(img.h, fn(_i) { Array::make(img.w, 0.0) })
-  let gy = Array::makei(img.h, fn(_i) { Array::make(img.w, 0.0) })
-  for y = 0; y < img.h; y = y + 1 {
-    for x = 0; x < img.w; x = x + 1 {
-      gx[y][x] = luma_at(gray, y, x + 1) - luma_at(gray, y, x - 1)
-      gy[y][x] = luma_at(gray, y + 1, x) - luma_at(gray, y - 1, x)
+  let luma_flat = Array::make(h * w, 0.0)
+  let stride = w * 4
+  for y = 0; y < h; y = y + 1 {
+    let row_base = y * stride
+    let out_base = y * w
+    for x = 0; x < w; x = x + 1 {
+      luma_flat[out_base + x] = gray.data[row_base + x * 4].to_double()
+    }
+  }
+  // Compute gradients with inlined replicate border (clamp indices).
+  let gx = Array::make(h * w, 0.0)
+  let gy = Array::make(h * w, 0.0)
+  let hmax = h - 1
+  let wmax = w - 1
+  for y = 0; y < h; y = y + 1 {
+    let ybase = y * w
+    let yp = (if y < hmax { y + 1 } else { hmax }) * w
+    let ym = (if y > 0 { y - 1 } else { 0 }) * w
+    for x = 0; x < w; x = x + 1 {
+      let xp = if x < wmax { x + 1 } else { wmax }
+      let xm = if x > 0 { x - 1 } else { 0 }
+      gx[ybase + x] = luma_flat[ybase + xp] - luma_flat[ybase + xm]
+      gy[ybase + x] = luma_flat[yp + x] - luma_flat[ym + x]
     }
   }
   // Cell histograms
-  let n_cells_y = img.h / cell_size
-  let n_cells_x = img.w / cell_size
+  let n_cells_y = h / cell_size
+  let n_cells_x = w / cell_size
   let cell_hists = Array::makei(n_cells_y * n_cells_x, fn(_i) {
     Array::make(nbins, 0.0)
   })
+  let nbins_d = nbins.to_double()
   for cy = 0; cy < n_cells_y; cy = cy + 1 {
     for cx = 0; cx < n_cells_x; cx = cx + 1 {
       let hist = Array::make(nbins, 0.0)
       for dy = 0; dy < cell_size; dy = dy + 1 {
+        let y = cy * cell_size + dy
+        let ybase = y * w
         for dx = 0; dx < cell_size; dx = dx + 1 {
-          let y = cy * cell_size + dy
           let x = cx * cell_size + dx
-          let mag = (gx[y][x] * gx[y][x] + gy[y][x] * gy[y][x]).sqrt()
-          let angle = @math.atan2(gy[y][x], gx[y][x]) * 180.0 / @math.PI
+          let idx = ybase + x
+          let gxi = gx[idx]
+          let gyi = gy[idx]
+          let mag = (gxi * gxi + gyi * gyi).sqrt()
+          let angle = @math.atan2(gyi, gxi) * 180.0 / @math.PI
           let mut a = if angle < 0.0 { angle + 180.0 } else { angle }
           a = a % 180.0
-          let bin = clampi(
-            (a / 180.0 * nbins.to_double()).to_int(),
-            0,
-            nbins - 1,
-          )
+          let bin = clampi((a / 180.0 * nbins_d).to_int(), 0, nbins - 1)
           hist[bin] = hist[bin] + mag
         }
       }

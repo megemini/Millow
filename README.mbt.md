@@ -153,6 +153,25 @@ test "augment_random_choice example" {
 
 ## API notes
 
+### Coordinate system
+
+millow uses a single uniform coordinate convention across the entire API:
+
+- **Dimension order**: `(h, w)` — height first, width second.
+  `Image::new(h, w)`, `resize(img, dst_h, dst_w, interp)`,
+  `crop(img, y, x, h, w)`, `Image::shape() -> (h, w)`.
+
+- **Coordinate order**: `(y, x)` — row first, column second.
+  `y` is the vertical axis (increases downward), `x` is the horizontal axis
+  (increases rightward). The origin `(0, 0)` is the **top-left** corner.
+
+- **Drawing centers**: `draw_circle(img, cy, cx, radius, ...)`,
+  `draw_ellipse(img, cy, cx, ry, rx, ...)`.
+
+- **Translation**: `translate(img, dy, dx, interp)`.
+
+- **Contours**: `find_contours` returns `(y, x)` tuples.
+
 ### Brightness adjustment
 
 `adjust_brightness(img, factor)` uses a multiplicative factor:

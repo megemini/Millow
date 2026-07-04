@@ -147,6 +147,25 @@ test "augment_random_choice 示例" {
 
 ## API 说明
 
+### 坐标系
+
+millow 在整个 API 中使用统一的坐标约定：
+
+- **维度顺序**：`(h, w)` — 高度优先，宽度次之。
+  `Image::new(h, w)`、`resize(img, dst_h, dst_w, interp)`、
+  `crop(img, y, x, h, w)`、`Image::shape() -> (h, w)`。
+
+- **坐标顺序**：`(y, x)` — 行优先，列次之。
+  `y` 是垂直轴（向下递增），`x` 是水平轴（向右递增）。原点 `(0, 0)` 为
+  **左上角**。
+
+- **绘图中心**：`draw_circle(img, cy, cx, radius, ...)`、
+  `draw_ellipse(img, cy, cx, ry, rx, ...)`。
+
+- **平移**：`translate(img, dy, dx, interp)`。
+
+- **轮廓**：`find_contours` 返回 `(y, x)` 元组。
+
 ### 亮度调整
 
 `adjust_brightness(img, factor)` 使用乘法因子：

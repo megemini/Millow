@@ -39,28 +39,76 @@ fn kernel_offsets(k : Kernel) -> Array[(Int, Int)] {
 /// Grayscale morphology core: max (dilate) or min (erode) over the element.
 fn morph(img : Image, k : Kernel, is_dilate : Bool) -> Image {
   let offs = kernel_offsets(k)
-  let out = Image::new(img.h, img.w)
-  for y = 0; y < img.h; y = y + 1 {
-    for x = 0; x < img.w; x = x + 1 {
-      let oo = out.offset(y, x)
+  let noff = offs.length()
+  let h = img.h
+  let w = img.w
+  let stride = w * 4
+  let out = Image::new(h, w)
+  let hmax = h - 1
+  let wmax = w - 1
+  // Compute max radius for interior check
+  let mut max_r = 0
+  for i = 0; i < noff; i = i + 1 {
+    let (dy, dx) = offs[i]
+    let ady = if dy < 0 { -dy } else { dy }
+    let adx = if dx < 0 { -dx } else { dx }
+    let m = if ady > adx { ady } else { adx }
+    if m > max_r {
+      max_r = m
+    }
+  }
+  for y = 0; y < h; y = y + 1 {
+    let out_base = y * stride
+    let is_interior_y = y >= max_r && y < h - max_r
+    for x = 0; x < w; x = x + 1 {
+      let oo = out_base + x * 4
+      let is_interior = is_interior_y && x >= max_r && x < w - max_r
       for c = 0; c < 3; c = c + 1 {
         let mut m = if is_dilate { 0 } else { 255 }
-        for off in offs {
-          let (dy, dx) = off
-          let cy = clampi(y + dy, 0, img.h - 1)
-          let cx = clampi(x + dx, 0, img.w - 1)
-          let v = img.data[img.offset(cy, cx) + c].to_int()
-          if is_dilate {
-            if v > m {
+        if is_interior {
+          for i = 0; i < noff; i = i + 1 {
+            let (dy, dx) = offs[i]
+            let v = img.data[(y + dy) * stride + (x + dx) * 4 + c].to_int()
+            if is_dilate {
+              if v > m {
+                m = v
+              }
+            } else if v < m {
               m = v
             }
-          } else if v < m {
-            m = v
+          }
+        } else {
+          for i = 0; i < noff; i = i + 1 {
+            let (dy, dx) = offs[i]
+            let cy = y + dy
+            let cx = x + dx
+            let clamped_y = if cy < 0 {
+              0
+            } else if cy > hmax {
+              hmax
+            } else {
+              cy
+            }
+            let clamped_x = if cx < 0 {
+              0
+            } else if cx > wmax {
+              wmax
+            } else {
+              cx
+            }
+            let v = img.data[clamped_y * stride + clamped_x * 4 + c].to_int()
+            if is_dilate {
+              if v > m {
+                m = v
+              }
+            } else if v < m {
+              m = v
+            }
           }
         }
         out.data[oo + c] = m.to_byte()
       }
-      out.data[oo + 3] = img.data[img.offset(y, x) + 3]
+      out.data[oo + 3] = img.data[oo + 3]
     }
   }
   out

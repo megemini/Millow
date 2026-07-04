@@ -1,29 +1,42 @@
 ///|
-/// Collect the values of channel `c` in a `(2r+1)` window (clamped border).
-fn window_vals(img : Image, y : Int, x : Int, r : Int, c : Int) -> Array[Byte] {
-  let vals : Array[Byte] = []
-  for dy = -r; dy <= r; dy = dy + 1 {
-    for dx = -r; dx <= r; dx = dx + 1 {
-      let cy = clampi(y + dy, 0, img.h - 1)
-      let cx = clampi(x + dx, 0, img.w - 1)
-      vals.push(img.data[img.offset(cy, cx) + c])
-    }
-  }
-  vals
-}
-
-///|
 /// Apply a per-channel window reducer over the RGB channels (alpha copied).
+/// Uses a preallocated buffer to avoid per-pixel allocation.
 fn window_map(img : Image, size : Int, reduce : (Array[Byte]) -> Byte) -> Image {
   let r = size / 2
-  let out = Image::new(img.h, img.w)
-  for y = 0; y < img.h; y = y + 1 {
-    for x = 0; x < img.w; x = x + 1 {
-      let oo = out.offset(y, x)
+  let h = img.h
+  let w = img.w
+  let stride = w * 4
+  let out = Image::new(h, w)
+  let hmax = h - 1
+  let wmax = w - 1
+  let win_n = (2 * r + 1) * (2 * r + 1)
+  let buf = Array::make(win_n, (0 : Byte))
+  for y = 0; y < h; y = y + 1 {
+    let out_base = y * stride
+    for x = 0; x < w; x = x + 1 {
+      let oo = out_base + x * 4
       for c = 0; c < 3; c = c + 1 {
-        out.data[oo + c] = reduce(window_vals(img, y, x, r, c))
+        let mut bi = 0
+        for dy = -r; dy <= r; dy = dy + 1 {
+          let cy = y + dy
+          let clamped_y = if cy < 0 { 0 } else if cy > hmax { hmax } else { cy }
+          let row_base = clamped_y * stride
+          for dx = -r; dx <= r; dx = dx + 1 {
+            let cx = x + dx
+            let clamped_x = if cx < 0 {
+              0
+            } else if cx > wmax {
+              wmax
+            } else {
+              cx
+            }
+            buf[bi] = img.data[row_base + clamped_x * 4 + c]
+            bi = bi + 1
+          }
+        }
+        out.data[oo + c] = reduce(buf)
       }
-      out.data[oo + 3] = img.data[img.offset(y, x) + 3]
+      out.data[oo + 3] = img.data[oo + 3]
     }
   }
   out
