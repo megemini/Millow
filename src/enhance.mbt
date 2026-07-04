@@ -48,6 +48,10 @@ pub fn adjust_gamma(img : Image, gamma : Double) -> Image {
 
 ///|
 /// Linearly rescale the RGB value range into `[min, max]`.
+///
+/// Finds the current minimum and maximum across all RGB channels, then maps
+/// that range linearly onto `[min, max]`. If the input range is empty the
+/// image is returned unchanged. The alpha channel is preserved.
 pub fn normalize(img : Image, min : Byte, max : Byte) -> Image {
   let mut lo = 255
   let mut hi = 0
@@ -79,7 +83,11 @@ pub fn normalize(img : Image, min : Byte, max : Byte) -> Image {
 }
 
 ///|
-/// Automatic contrast stretch, ignoring `cutoff` percent of pixels per end.
+/// Automatic contrast stretch with histogram cutoff.
+///
+/// Builds the image histogram, discards `cutoff` percent of the pixel count
+/// from each end, then linearly stretches the remaining intensity range to
+/// the full 0–255 range. The alpha channel is preserved.
 pub fn auto_contrast(img : Image, cutoff : Int) -> Image {
   let hist = histogram(img)
   let total = img.h * img.w
@@ -117,7 +125,12 @@ pub fn auto_contrast(img : Image, cutoff : Int) -> Image {
 
 ///|
 /// Standardize the image to zero mean and unit standard deviation.
-/// Returns a 2D array of `Float` values (one per pixel, based on luma).
+///
+/// Computes the mean and standard deviation of the per-pixel luma, then
+/// returns `(luma - mean) / std` for each pixel. A zero-variance image uses
+/// `std = 1.0` to avoid division by zero.
+///
+/// Returns an `h × w` array of `Double` values.
 pub fn standardize(img : Image) -> Array[Array[Double]] {
   let n = img.h * img.w
   let mut sum = 0.0

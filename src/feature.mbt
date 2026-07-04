@@ -1,13 +1,15 @@
 ///|
-/// Harris corner response map. Returns an `h × w` array of response values.
-/// `k` is the Harris parameter (typically 0.04–0.06).
-/// Uses Gaussian-weighted structure tensor (matching skimage).
-pub fn corner_harris(
-  img : Image,
-  block_size : Int,
-  _ksize : Int,
-  k : Double,
-) -> Array[Array[Double]] {
+/// Harris corner response map.
+///
+/// Computes the Gaussian-weighted structure tensor of the image's luma
+/// gradients and returns the Harris response `det(M) - k * trace(M)²` per
+/// pixel.
+///
+/// - `k`: Harris sensitivity parameter, typically in the range 0.04–0.06.
+///
+/// Returns an `h × w` array of response values; large positive values
+/// indicate corners.
+pub fn corner_harris(img : Image, k : Double) -> Array[Array[Double]] {
   let gray = to_grayscale(img)
   let gx = grad_double(
     gray,
@@ -50,13 +52,14 @@ pub fn corner_harris(
 }
 
 ///|
-/// Shi-Tomasi corner response (minimum eigenvalue of the structure tensor).
-/// Uses Gaussian-weighted structure tensor (matching skimage).
-pub fn corner_shi_tomasi(
-  img : Image,
-  block_size : Int,
-  _ksize : Int,
-) -> Array[Array[Double]] {
+/// Shi-Tomasi corner response map.
+///
+/// Computes the Gaussian-weighted structure tensor of the image's luma
+/// gradients and returns the smaller eigenvalue of the tensor per pixel.
+///
+/// Returns an `h × w` array of response values; large values indicate
+/// corner-like regions.
+pub fn corner_shi_tomasi(img : Image) -> Array[Array[Double]] {
   let gray = to_grayscale(img)
   let gx = grad_double(
     gray,
@@ -103,7 +106,17 @@ pub fn corner_shi_tomasi(
 
 ///|
 /// Histogram of Oriented Gradients (HOG) feature descriptor.
-/// Returns a flat array of histogram bins.
+///
+/// Computes gradients on the luma field, accumulates unsigned gradient
+/// orientations (0–180°) into per-cell histograms of `nbins` bins, then
+/// normalizes each overlapping `block_size × block_size` block of cells
+/// with an L2 norm.
+///
+/// - `cell_size`: side length (in pixels) of each cell.
+/// - `block_size`: side length (in cells) of each normalization block.
+/// - `nbins`: number of orientation bins per cell.
+///
+/// Returns a flat array of normalized histogram values.
 pub fn hog(
   img : Image,
   cell_size : Int,
@@ -174,6 +187,15 @@ pub fn hog(
 
 ///|
 /// Local Binary Pattern (LBP) codes for each pixel.
+///
+/// For every pixel, samples `n_points` neighbors on a circle of the given
+/// `radius` (using bilinear interpolation) and builds a bitmask of which
+/// neighbors are greater than or equal to the center value.
+///
+/// - `radius`: circle radius in pixels.
+/// - `n_points`: number of sampled neighbors (also the bitmask width).
+///
+/// Returns a flat `Array[Int]` of length `h * w`, row-major.
 pub fn lbp(img : Image, radius : Int, n_points : Int) -> Array[Int] {
   let n = img.h * img.w
   let out = Array::make(n, 0)
@@ -197,7 +219,13 @@ pub fn lbp(img : Image, radius : Int, n_points : Int) -> Array[Int] {
 }
 
 ///|
-/// LBP histogram (2^n_points bins).
+/// Histogram of Local Binary Pattern codes over the whole image.
+///
+/// - `radius`: circle radius in pixels, forwarded to `lbp`.
+/// - `n_points`: number of sampled neighbors, forwarded to `lbp`.
+///
+/// Returns an `Array[Int]` of length `2 ^ n_points` containing per-bin
+/// counts.
 pub fn lbp_histogram(img : Image, radius : Int, n_points : Int) -> Array[Int] {
   let codes = lbp(img, radius, n_points)
   let n_bins = 1 << n_points

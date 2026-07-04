@@ -1,6 +1,19 @@
 ///|
 /// Data augmentation operations that can be composed into a pipeline.
-pub enum Augmentation {
+///
+/// Each variant wraps the parameters of one transformation; `augment_pipeline`
+/// applies them in order. Variants:
+///
+/// - `Crop(y, x, h, w)`: extract the sub-image at `(y, x)` of size `h x w`.
+/// - `Resize(dst_h, dst_w)`: resize to `dst_h x dst_w` using bilinear sampling.
+/// - `FlipHorizontal` / `FlipVertical`: mirror the image.
+/// - `Rotate(angle)`: rotate by `angle` degrees (bilinear).
+/// - `Brightness(factor)` / `Contrast(factor)`: multiplicative adjustments.
+/// - `Gamma(g)`: gamma correction with exponent `g`.
+/// - `NoiseGaussian(std)`: add Gaussian noise with standard deviation `std`.
+/// - `NoiseSaltPepper(prob)`: corrupt pixels with probability `prob`.
+/// - `ColorJitter(b, c, s, h)`: brightness/contrast/saturation/hue jitter.
+pub(all) enum Augmentation {
   Crop(Int, Int, Int, Int) // y, x, h, w
   Resize(Int, Int) // dst_h, dst_w
   FlipHorizontal
@@ -16,6 +29,9 @@ pub enum Augmentation {
 
 ///|
 /// Random crop to target size.
+///
+/// Picks a random top-left corner so the `h x w` window fits inside the image.
+/// Returns a clone of the input when it already fits within `h x w`.
 pub fn random_crop(img : Image, h : Int, w : Int) -> Image raise {
   if h >= img.h && w >= img.w {
     return img.clone()
@@ -28,6 +44,9 @@ pub fn random_crop(img : Image, h : Int, w : Int) -> Image raise {
 
 ///|
 /// Random horizontal flip (50% probability).
+///
+/// Returns a mirrored copy with probability `0.5`, otherwise a clone of the
+/// input. Each call draws a fresh random sample.
 pub fn random_flip_horizontal(img : Image) -> Image {
   let rng = @random.Rand::new()
   if rng.double() < 0.5 {
@@ -39,6 +58,9 @@ pub fn random_flip_horizontal(img : Image) -> Image {
 
 ///|
 /// Random rotation within `[-max_angle, max_angle]` degrees.
+///
+/// Samples an angle uniformly from the symmetric range and rotates with
+/// bilinear sampling.
 pub fn random_rotate(img : Image, max_angle : Double) -> Image {
   let rng = @random.Rand::new()
   let angle = (2.0 * rng.double() - 1.0) * max_angle
@@ -47,6 +69,9 @@ pub fn random_rotate(img : Image, max_angle : Double) -> Image {
 
 ///|
 /// Random brightness adjustment within `[1-max_factor, 1+max_factor]`.
+///
+/// Multiplies each RGB channel by a factor sampled uniformly from the
+/// symmetric range around `1.0`.
 pub fn random_brightness(img : Image, max_factor : Double) -> Image {
   let rng = @random.Rand::new()
   let factor = 1.0 + (2.0 * rng.double() - 1.0) * max_factor
@@ -55,6 +80,9 @@ pub fn random_brightness(img : Image, max_factor : Double) -> Image {
 
 ///|
 /// Random contrast adjustment within `[1-max_factor, 1+max_factor]`.
+///
+/// Scales pixel deviations from the image mean by a factor sampled uniformly
+/// from the symmetric range around `1.0`.
 pub fn random_contrast(img : Image, max_factor : Double) -> Image {
   let rng = @random.Rand::new()
   let factor = 1.0 + (2.0 * rng.double() - 1.0) * max_factor
@@ -63,6 +91,9 @@ pub fn random_contrast(img : Image, max_factor : Double) -> Image {
 
 ///|
 /// Random gamma within `[1/max_gamma, max_gamma]`.
+///
+/// Samples the exponent log-uniformly so low and high gamma are equally
+/// likely, then applies `adjust_gamma`.
 pub fn random_gamma(img : Image, max_gamma : Double) -> Image {
   let rng = @random.Rand::new()
   let log_g = (2.0 * rng.double() - 1.0) * @math.ln(max_gamma)
@@ -71,6 +102,9 @@ pub fn random_gamma(img : Image, max_gamma : Double) -> Image {
 
 ///|
 /// Add Gaussian noise with the given standard deviation.
+///
+/// Adds independent zero-mean Gaussian noise (via Box-Muller) of standard
+/// deviation `std` to each RGB channel; alpha is preserved.
 pub fn random_noise_gaussian(img : Image, std : Double) -> Image {
   let out = img.clone()
   let rng = @random.Rand::new()
@@ -91,6 +125,10 @@ pub fn random_noise_gaussian(img : Image, std : Double) -> Image {
 
 ///|
 /// Add salt-and-pepper noise with the given probability.
+///
+/// Each pixel is set to black with probability `prob / 2` and to white with
+/// probability `prob / 2`; otherwise it is left unchanged. Only RGB channels
+/// are affected; alpha is preserved.
 pub fn random_noise_salt_pepper(img : Image, prob : Double) -> Image {
   let out = img.clone()
   let rng = @random.Rand::new()
@@ -114,6 +152,10 @@ pub fn random_noise_salt_pepper(img : Image, prob : Double) -> Image {
 
 ///|
 /// Random colour jitter (brightness, contrast, saturation, hue).
+///
+/// Applies `random_brightness` and `random_contrast` when their magnitudes are
+/// positive. Saturation and hue jitter are accepted but not yet applied
+/// (HSV conversion is not wired through).
 pub fn random_color_jitter(
   img : Image,
   brightness : Double,
@@ -134,6 +176,9 @@ pub fn random_color_jitter(
 
 ///|
 /// Apply a sequence of augmentations in order.
+///
+/// Folds `pipeline` left-to-right over `img`, dispatching each `Augmentation`
+/// variant to its underlying operation. May raise from crop/resize.
 pub fn augment_pipeline(
   img : Image,
   pipeline : Array[Augmentation],
@@ -159,6 +204,10 @@ pub fn augment_pipeline(
 
 ///|
 /// Randomly choose and apply one augmentation from a weighted list.
+///
+/// `choices` pairs each `Augmentation` with a non-negative weight; the chosen
+/// entry is sampled proportionally and applied via `augment_pipeline`. Returns
+/// a clone of the input when `choices` is empty.
 pub fn augment_random_choice(
   img : Image,
   choices : Array[(Double, Augmentation)],
@@ -180,6 +229,9 @@ pub fn augment_random_choice(
 
 ///|
 /// Apply a function to a batch of images.
+///
+/// Returns a new array where `f` has been applied to each element of `imgs`
+/// in index order.
 pub fn process_batch(imgs : Array[Image], f : (Image) -> Image) -> Array[Image] {
   Array::makei(imgs.length(), fn(i) { f(imgs[i]) })
 }

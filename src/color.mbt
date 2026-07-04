@@ -34,6 +34,8 @@ pub fn to_grayscale(img : Image) -> Image {
 
 ///|
 /// Grayscale with custom linear weights, alpha preserved.
+///
+/// - `r_w`, `g_w`, `b_w`: per-channel weights (typically summing to 1.0).
 pub fn to_grayscale_weighted(
   img : Image,
   r_w : Double,
@@ -68,6 +70,8 @@ pub fn invert(img : Image) -> Image {
 
 ///|
 /// Multiplicative color tint: each channel scaled by `color / 255`.
+///
+/// - `r`, `g`, `b`: tint color; `(255, 255, 255)` leaves the image unchanged.
 pub fn tint(img : Image, r : Byte, g : Byte, b : Byte) -> Image {
   map_rgba(img, fn(pr, pg, pb, a) {
     (
@@ -81,6 +85,8 @@ pub fn tint(img : Image, r : Byte, g : Byte, b : Byte) -> Image {
 
 ///|
 /// Composite the image over a solid background color, dropping transparency.
+///
+/// - `r`, `g`, `b`: the solid background color; output alpha is forced to 255.
 pub fn flatten_alpha(img : Image, r : Byte, g : Byte, b : Byte) -> Image {
   map_rgba(img, fn(pr, pg, pb, a) {
     let alpha = a.to_double() / 255.0
@@ -192,6 +198,8 @@ pub fn to_hsv(
 
 ///|
 /// HSV → RGBA8. H in `[0, 360)`, S in `[0, 1]`, V in `[0, 1]`.
+///
+/// - `h`, `s`, `v`: equally-shaped `rows × cols` arrays; output alpha is 255.
 pub fn from_hsv(
   h : Array[Array[Double]],
   s : Array[Array[Double]],
@@ -233,7 +241,8 @@ pub fn from_hsv(
 }
 
 ///|
-/// RGB → YCbCr (ITU-R BT.601). Returns three `h × w` arrays.
+/// RGB → YCbCr (ITU-R BT.601). Returns three `h × w` arrays `(Y, Cb, Cr)`.
+/// `Y` is in `[0, 255]`; `Cb` and `Cr` are centred at 128.
 pub fn to_ycbcr(
   img : Image,
 ) -> (Array[Array[Double]], Array[Array[Double]], Array[Array[Double]]) {
@@ -255,7 +264,8 @@ pub fn to_ycbcr(
 }
 
 ///|
-/// YCbCr → RGBA8.
+/// YCbCr → RGBA8. Expects `Y` in `[0, 255]`, `Cb`/`Cr` centred at 128.
+/// Output alpha is 255.
 pub fn from_ycbcr(
   y_arr : Array[Array[Double]],
   cb_arr : Array[Array[Double]],
@@ -282,6 +292,9 @@ pub fn from_ycbcr(
 ///|
 /// Composite a solid color onto `img` using `mask` as the alpha source.
 /// Where `mask` is bright, the color is applied more strongly.
+///
+/// - `mask`: its red channel (normalized to `[0, 1]`) is used as the blend weight.
+/// - `r`, `g`, `b`: the color to composite.
 pub fn composite_color(
   img : Image,
   mask : Image,

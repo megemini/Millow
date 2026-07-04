@@ -160,7 +160,10 @@ fn resize_bicubic(img : Image, dst_h : Int, dst_w : Int) -> Image {
 }
 
 ///|
-/// Resize to an explicit size using the given interpolation.
+/// Resize the image to `(dst_h, dst_w)` using the given interpolation.
+///
+/// - `dst_h`, `dst_w`: target dimensions in pixels.
+/// - `interp`: resampling method (`Nearest`, `Bilinear`, or `Bicubic`).
 pub fn resize(img : Image, dst_h : Int, dst_w : Int, interp : Interp) -> Image {
   match interp {
     Nearest => resize_nearest(img, dst_h, dst_w)
@@ -170,7 +173,12 @@ pub fn resize(img : Image, dst_h : Int, dst_w : Int, interp : Interp) -> Image {
 }
 
 ///|
-/// Scale both dimensions by a factor.
+/// Scale both dimensions by a uniform factor.
+///
+/// - `scale`: scaling factor (e.g. `0.5` halves, `2.0` doubles).
+/// - `interp`: resampling method (`Nearest`, `Bilinear`, or `Bicubic`).
+///
+/// Output dimensions are `round(h * scale) x round(w * scale)`.
 pub fn rescale(img : Image, scale : Double, interp : Interp) -> Image {
   let dh = @math.round(img.h.to_double() * scale).to_int()
   let dw = @math.round(img.w.to_double() * scale).to_int()
@@ -179,6 +187,12 @@ pub fn rescale(img : Image, scale : Double, interp : Interp) -> Image {
 
 ///|
 /// Scale to fit inside `max_h x max_w`, preserving aspect ratio.
+///
+/// - `max_h`, `max_w`: maximum bounding dimensions.
+/// - `interp`: resampling method (`Nearest`, `Bilinear`, or `Bicubic`).
+///
+/// The result fits entirely within the box and at least one dimension equals
+/// its bound. Returns a clone if the image is empty.
 pub fn resize_to_fit(
   img : Image,
   max_h : Int,
@@ -196,6 +210,12 @@ pub fn resize_to_fit(
 
 ///|
 /// Scale to cover `min_h x min_w`, preserving aspect ratio, cropping overflow.
+///
+/// - `min_h`, `min_w`: target dimensions to fully cover.
+/// - `interp`: resampling method (`Nearest`, `Bilinear`, or `Bicubic`).
+///
+/// The image is scaled then center-cropped to `(min_h, min_w)`. Returns a
+/// clone if the image is empty.
 pub fn resize_to_cover(
   img : Image,
   min_h : Int,

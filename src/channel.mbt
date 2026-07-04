@@ -1,5 +1,7 @@
 ///|
-/// Extract a single channel (0=R, 1=G, 2=B, 3=A) as an `h * w` byte array.
+/// Extract a single channel as an `h * w` byte array.
+///
+/// - `ch`: channel index (0=R, 1=G, 2=B, 3=A).
 pub fn Image::channel(self : Image, ch : Int) -> Array[Byte] {
   Array::makei(self.h * self.w, fn(i) { self.data[i * 4 + ch] })
 }
@@ -30,6 +32,9 @@ pub fn Image::channel_a(self : Image) -> Array[Byte] {
 
 ///|
 /// Return a copy of the image with one channel replaced.
+///
+/// - `ch`: channel index (0=R, 1=G, 2=B, 3=A).
+/// - `data`: per-pixel values; length must equal `h * w`.
 pub fn Image::set_channel(self : Image, ch : Int, data : Array[Byte]) -> Image {
   let out = self.data.copy()
   let n = self.h * self.w
@@ -48,7 +53,8 @@ pub fn Image::split_channels(
 }
 
 ///|
-/// Merge channel arrays into an image. Alpha defaults to fully opaque.
+/// Merge channel arrays into a `1 × n` image (single row). Alpha defaults
+/// to fully opaque (255) when `None`. Raises `ImageError` on length mismatch.
 pub fn merge_channels(
   r : Array[Byte],
   g : Array[Byte],

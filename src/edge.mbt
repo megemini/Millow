@@ -78,25 +78,43 @@ fn mag_image(gx : Array[Array[Float]], gy : Array[Array[Float]]) -> Image {
 }
 
 ///|
-/// Sobel horizontal gradient (per-pixel response).
+/// Compute the Sobel horizontal (x-direction) gradient response.
+///
+/// Convolves the image's luma field with the 3×3 Sobel-x kernel using
+/// `Reflect` border handling.
+///
+/// Returns an `h × w` array of per-pixel gradient values as `Float`.
 pub fn sobel_x(img : Image) -> Array[Array[Float]] {
   grad(img, [[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]], Reflect)
 }
 
 ///|
-/// Sobel vertical gradient (per-pixel response).
+/// Compute the Sobel vertical (y-direction) gradient response.
+///
+/// Convolves the image's luma field with the 3×3 Sobel-y kernel using
+/// `Reflect` border handling.
+///
+/// Returns an `h × w` array of per-pixel gradient values as `Float`.
 pub fn sobel_y(img : Image) -> Array[Array[Float]] {
   grad(img, [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]], Reflect)
 }
 
 ///|
-/// Sobel edge magnitude (grayscale image).
+/// Sobel edge magnitude as a grayscale image.
+///
+/// Combines the x and y Sobel gradients into `sqrt(gx² + gy²)` per pixel,
+/// then scales the result to fill the 0–255 range. The alpha channel is set
+/// to 255.
 pub fn sobel(img : Image) -> Image {
   mag_image(sobel_x(img), sobel_y(img))
 }
 
 ///|
-/// Prewitt edge magnitude (grayscale image).
+/// Prewitt edge magnitude as a grayscale image.
+///
+/// Combines the x and y Prewitt gradients into `sqrt(gx² + gy²)` per pixel,
+/// then scales the result to fill the 0–255 range. The alpha channel is set
+/// to 255.
 pub fn prewitt(img : Image) -> Image {
   let gx = grad(
     img,
@@ -112,7 +130,12 @@ pub fn prewitt(img : Image) -> Image {
 }
 
 ///|
-/// Scharr edge magnitude (grayscale image).
+/// Scharr edge magnitude as a grayscale image.
+///
+/// Combines the x and y Scharr gradients into `sqrt(gx² + gy²)` per pixel,
+/// then scales the result to fill the 0–255 range. The Scharr kernel is
+/// more rotationally symmetric than Sobel, giving more accurate gradients.
+/// The alpha channel is set to 255.
 pub fn scharr(img : Image) -> Image {
   let gx = grad(
     img,
@@ -128,7 +151,11 @@ pub fn scharr(img : Image) -> Image {
 }
 
 ///|
-/// Laplacian edge response (absolute value, grayscale image).
+/// Laplacian edge response as a grayscale image.
+///
+/// Applies the 3×3 Laplacian kernel `[[0,1,0],[1,-4,1],[0,1,0]]` to the
+/// image's luma field, takes the absolute value of the response, and scales
+/// it to fill the 0–255 range. The alpha channel is set to 255.
 pub fn laplacian(img : Image) -> Image {
   let g = grad(
     img,
@@ -161,7 +188,19 @@ pub fn laplacian(img : Image) -> Image {
 }
 
 ///|
-/// Canny edge detector. `low` and `high` are the dual thresholds (0–255 range).
+/// Canny edge detector producing a binary edge image.
+///
+/// The pipeline smooths the image with a Gaussian blur, computes Sobel
+/// gradients, applies non-maximum suppression along the gradient direction,
+/// and uses dual-threshold hysteresis to trace the final edges.
+///
+/// - `low`: lower hysteresis threshold (0–255). Responses below this are
+///   discarded.
+/// - `high`: upper hysteresis threshold (0–255). Responses at or above this
+///   become strong edges; responses between `low` and `high` are kept only
+///   if connected to a strong edge.
+///
+/// Returns a grayscale image where edge pixels are 255 and all others are 0.
 pub fn canny(img : Image, low : Double, high : Double) -> Image {
   let smoothed = gaussian_blur(img, 1.4)
   let gx = grad(

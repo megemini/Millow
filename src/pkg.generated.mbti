@@ -46,9 +46,9 @@ pub fn connected_components(Image, Int) -> (Array[Array[Int]], Int)
 
 pub fn convolve(Image, Array[Array[Double]], Bool) -> Image
 
-pub fn corner_harris(Image, Int, Int, Double) -> Array[Array[Double]]
+pub fn corner_harris(Image, Double) -> Array[Array[Double]]
 
-pub fn corner_shi_tomasi(Image, Int, Int) -> Array[Array[Double]]
+pub fn corner_shi_tomasi(Image) -> Array[Array[Double]]
 
 pub fn count_nonzero(Image) -> Int
 
@@ -269,7 +269,7 @@ pub suberror ImageError {
 pub impl Show for ImageError
 
 // Types and methods
-pub enum Augmentation {
+pub(all) enum Augmentation {
   Crop(Int, Int, Int, Int)
   Resize(Int, Int)
   FlipHorizontal
@@ -283,7 +283,7 @@ pub enum Augmentation {
   ColorJitter(Double, Double, Double, Double)
 }
 
-pub enum BorderMode {
+pub(all) enum BorderMode {
   Replicate
   Reflect
   Wrap

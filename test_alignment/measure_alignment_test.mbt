@@ -4,7 +4,7 @@
 test "align connected_components" {
   let img = img_from_ints(3, 3, in_dot_3x3)
   let (labels, _num) = connected_components(img, 4)
-  assert_eq(labels, exp_connected_components)
+  @debug.assert_eq(labels, exp_connected_components)
 }
 
 ///|

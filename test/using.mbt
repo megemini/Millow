@@ -96,6 +96,8 @@ pub using @millow {
   hu_moments,
 
   // Augmentation
+  augment_pipeline,
+  augment_random_choice,
   random_noise_gaussian,
   random_noise_salt_pepper,
 

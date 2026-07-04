@@ -88,7 +88,13 @@ fn affine(
 }
 
 ///|
-/// Rotate by an arbitrary angle (degrees, clockwise, matching Pillow).
+/// Rotate the image by an arbitrary angle in degrees, clockwise.
+///
+/// - `angle`: rotation angle in degrees (positive = clockwise).
+/// - `interp`: interpolation method (`Nearest` or `Bilinear`).
+///
+/// The output canvas expands to fit the entire rotated image; areas outside
+/// the source are filled as opaque black `(0, 0, 0, 255)`.
 pub fn rotate_any(img : Image, angle : Double, interp : Interp) -> Image {
   let rad = -angle * @math.PI / 180.0
   let cos_a = @math.cos(rad)
@@ -145,10 +151,19 @@ pub fn rotate_any(img : Image, angle : Double, interp : Interp) -> Image {
 }
 
 ///|
-/// General affine transform. `matrix` is `[a, b, c, d, e, f]`:
-///   `x' = a*x + b*y + c`
-///   `y' = d*x + e*y + f`
-/// `mode` specifies the border handling (default is Constant(0,0,0,255)).
+/// Apply a general affine transform to the image.
+///
+/// `matrix` is `[a, b, c, d, e, f]` defining the forward mapping:
+///
+/// - `x' = a*x + b*y + c`
+/// - `y' = d*x + e*y + f`
+///
+/// - `dst_h`, `dst_w`: output image dimensions.
+/// - `interp`: interpolation method (`Nearest` or `Bilinear`).
+/// - `mode`: border handling for samples outside the source
+///   (default `Constant(0, 0, 0, 255)`).
+///
+/// Each output pixel is sampled from the inverse-mapped source location.
 pub fn affine_transform(
   img : Image,
   matrix : Array[Double],
@@ -161,7 +176,14 @@ pub fn affine_transform(
 }
 
 ///|
-/// Translate the image by `(dy, dx)` pixels (matching Pillow).
+/// Translate the image by `(dy, dx)` pixels.
+///
+/// - `dy`: vertical shift in pixels (positive = downward).
+/// - `dx`: horizontal shift in pixels (positive = rightward).
+/// - `interp`: interpolation method (`Nearest` or `Bilinear`).
+///
+/// The output keeps the source dimensions; areas uncovered by the source
+/// become opaque black `(0, 0, 0, 255)`.
 pub fn translate(
   img : Image,
   dy : Double,
@@ -173,9 +195,15 @@ pub fn translate(
 }
 
 ///|
-/// Shear the image. `sh_x` shears along x for each y; `sh_y` shears along y
-/// for each x.
-/// `mode` specifies the border handling (default is Constant(0,0,0,255)).
+/// Shear the image.
+///
+/// - `sh_x`: horizontal shear factor (x shifts by `sh_x * y`).
+/// - `sh_y`: vertical shear factor (y shifts by `sh_y * x`).
+/// - `interp`: interpolation method (`Nearest` or `Bilinear`).
+/// - `mode`: border handling for samples outside the source
+///   (default `Constant(0, 0, 0, 255)`).
+///
+/// The output canvas expands to hold the sheared image.
 pub fn shear(
   img : Image,
   sh_x : Double,

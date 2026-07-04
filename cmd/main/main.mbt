@@ -152,7 +152,7 @@ fn main {
   println(" ")
 
   // === Feature detection ===
-  let corners = @millow.corner_harris(gray, 2, 3, 0.04)
+  let corners = @millow.corner_harris(gray, 0.04)
   let corners_vis = visualize_corners(canvas, corners)
   save_jpg(corners_vis, "demo_output/25_corner_harris.jpg")
   println("25. corner_harris - saved")

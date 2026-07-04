@@ -48,9 +48,9 @@ pub fn connected_components(@src.Image, Int) -> (Array[Array[Int]], Int)
 
 pub fn convolve(@src.Image, Array[Array[Double]], Bool) -> @src.Image
 
-pub fn corner_harris(@src.Image, Int, Int, Double) -> Array[Array[Double]]
+pub fn corner_harris(@src.Image, Double) -> Array[Array[Double]]
 
-pub fn corner_shi_tomasi(@src.Image, Int, Int) -> Array[Array[Double]]
+pub fn corner_shi_tomasi(@src.Image) -> Array[Array[Double]]
 
 pub fn count_nonzero(@src.Image) -> Int
 

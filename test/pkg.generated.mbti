@@ -14,6 +14,10 @@ pub fn adjust_gamma(@src.Image, Double) -> @src.Image
 
 pub fn affine_transform(@src.Image, Array[Double], Int, Int, @src.Interp, mode? : @src.BorderMode) -> @src.Image
 
+pub fn augment_pipeline(@src.Image, Array[@src.Augmentation]) -> @src.Image raise
+
+pub fn augment_random_choice(@src.Image, Array[(Double, @src.Augmentation)]) -> @src.Image raise
+
 pub fn auto_contrast(@src.Image, Int) -> @src.Image
 
 pub fn bilateral_filter(@src.Image, Int, Double, Double) -> @src.Image
@@ -28,7 +32,7 @@ pub fn connected_components(@src.Image, Int) -> (Array[Array[Int]], Int)
 
 pub fn convolve(@src.Image, Array[Array[Double]], Bool) -> @src.Image
 
-pub fn corner_harris(@src.Image, Int, Int, Double) -> Array[Array[Double]]
+pub fn corner_harris(@src.Image, Double) -> Array[Array[Double]]
 
 pub fn crop(@src.Image, Int, Int, Int, Int) -> @src.Image raise @src.ImageError
 

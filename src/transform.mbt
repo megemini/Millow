@@ -8,7 +8,12 @@ fn copy_px(src : Image, so : Int, dst : Image, dof : Int) -> Unit {
 }
 
 ///|
-/// Crop a rectangular region. Fails if the region leaves the image.
+/// Crop a rectangular region starting at `(y, x)` with size `h x w`.
+///
+/// - `y`, `x`: top-left corner of the region (inclusive).
+/// - `h`, `w`: height and width of the region.
+///
+/// Raises `ImageError` if the region lies outside the image bounds.
 pub fn crop(
   img : Image,
   y : Int,

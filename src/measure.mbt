@@ -1,6 +1,11 @@
 ///|
 /// Connected components labelling (4- or 8-connectivity).
 /// Returns `(labels, num_labels)` where `labels[y][x]` is the label (1-based).
+///
+/// Non-black pixels (any RGB channel non-zero) are treated as foreground.
+/// `connectivity` should be `4` (orthogonal neighbours) or `8` (also include
+/// diagonals). Labels are compacted to a contiguous `1..num_labels` range;
+/// background pixels keep label `0`.
 pub fn connected_components(
   img : Image,
   connectivity : Int,
@@ -86,6 +91,10 @@ pub fn connected_components(
 
 ///|
 /// Find contours as arrays of `(y, x)` boundary pixels (simple boundary trace).
+///
+/// Labels the image with 4-connectivity, then for each label collects pixels
+/// that have at least one 4-neighbour with a different label (or lie on the
+/// image edge). Returns one array per connected component.
 pub fn find_contours(img : Image) -> Array[Array[(Int, Int)]] {
   let (labels, n) = connected_components(img, 4)
   let contours : Array[Array[(Int, Int)]] = []
@@ -116,6 +125,11 @@ pub fn find_contours(img : Image) -> Array[Array[(Int, Int)]] {
 
 ///|
 /// Region properties for labelled images.
+///
+/// - `label`: the 1-based label the props describe.
+/// - `area`: number of pixels in the region.
+/// - `centroid`: `(row, col)` mean pixel coordinate.
+/// - `bbox`: `(min_row, min_col, max_row, max_col)` inclusive bounds.
 pub struct RegionProps {
   label : Int
   area : Int
@@ -125,6 +139,11 @@ pub struct RegionProps {
 
 ///|
 /// Compute region properties for each label (1..num_labels).
+///
+/// `labels` is a 2D label array (e.g. from `connected_components`) and
+/// `num_labels` the corresponding label count. Returns one `RegionProps` per
+/// label in label order; regions with zero area keep their initial zeroed
+/// centroid/bbox.
 pub fn regionprops(
   labels : Array[Array[Int]],
   num_labels : Int,
@@ -177,6 +196,9 @@ pub fn regionprops(
 
 ///|
 /// Count non-zero (non-black) pixels.
+///
+/// A pixel is counted when any of its RGB channels is non-zero; alpha is
+/// ignored.
 pub fn count_nonzero(img : Image) -> Int {
   let mut count = 0
   let n = img.h * img.w
@@ -191,6 +213,8 @@ pub fn count_nonzero(img : Image) -> Int {
 
 ///|
 /// Count pixels whose luma exceeds `threshold`.
+///
+/// Uses strict greater-than comparison on the BT.601 luma.
 pub fn count_pixels(img : Image, threshold : Byte) -> Int {
   let t = threshold.to_int()
   let mut count = 0
@@ -206,6 +230,9 @@ pub fn count_pixels(img : Image, threshold : Byte) -> Int {
 
 ///|
 /// Raw image moments (m00, m10, m01, m20, m11, m02, m30, m21, m12, m03).
+///
+/// Each pixel's BT.601 luma is used as the weight. Returns a 10-element array
+/// in that fixed order.
 pub fn moments(img : Image) -> Array[Double] {
   let m = Array::make(10, 0.0)
   for y = 0; y < img.h; y = y + 1 {
@@ -229,6 +256,9 @@ pub fn moments(img : Image) -> Array[Double] {
 
 ///|
 /// Hu moments (7 translation/scale/rotation invariant moments).
+///
+/// Computed from the normalized central moments of the luma image. Returns a
+/// 7-element array; returns all zeros when the image is empty (`m00 == 0`).
 pub fn hu_moments(img : Image) -> Array[Double] {
   let m = moments(img)
   let m00 = m[0]

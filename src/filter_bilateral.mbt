@@ -1,9 +1,10 @@
 ///|
-/// Bilateral filter: edge-preserving denoising.
-/// `d` is the neighbourhood diameter (if <= 0, computed as max(5, 2*ceil(3*sigma_spatial)+1)).
-/// `sigma_color` controls tonal weight (in [0, 1] range, matching skimage).
-/// `sigma_space` controls spatial weight.
-/// Uses reflect boundary mode.
+/// Bilateral filter: edge-preserving denoising. Uses reflect boundary mode.
+///
+/// - `d`: neighbourhood diameter; if `<= 0`, computed as
+///   `max(5, 2 * ceil(3 * sigma_space) + 1)`.
+/// - `sigma_color`: tonal weight, in `[0, 1]` (normalized RGB distance).
+/// - `sigma_space`: spatial weight.
 pub fn bilateral_filter(
   img : Image,
   d : Int,

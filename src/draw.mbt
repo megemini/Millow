@@ -48,6 +48,10 @@ fn stamp(
 
 ///|
 /// Draw a single pixel (alpha blended). Returns a new image.
+///
+/// Sets the pixel at `(y, x)` to `(r, g, b)` alpha-composited with the
+/// existing colour using source-over blending. Out-of-bounds coordinates are
+/// ignored. The input image is not modified.
 pub fn draw_pixel(
   img : Image,
   y : Int,
@@ -64,6 +68,10 @@ pub fn draw_pixel(
 
 ///|
 /// Draw a line with the Bresenham algorithm and the given stroke width.
+///
+/// Connects `(y0, x0)` to `(y1, x1)` inclusive, stamping a `width x width`
+/// block at each rasterized pixel using source-over alpha blending. The input
+/// image is not modified.
 pub fn draw_line(
   img : Image,
   y0 : Int,

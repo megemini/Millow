@@ -1,5 +1,9 @@
 ///|
 /// Interpolation method used by geometric resampling operations.
+///
+/// - `Nearest`: pick the closest source pixel.
+/// - `Bilinear`: weighted average of the 4 nearest pixels.
+/// - `Bicubic`: cubic interpolation over a 4x4 neighborhood.
 pub(all) enum Interp {
   Nearest
   Bilinear
@@ -8,6 +12,11 @@ pub(all) enum Interp {
 
 ///|
 /// Border handling strategy used by padding and neighborhood operations.
+///
+/// - `Constant(r, g, b, a)`: fill outside pixels with the given RGBA color.
+/// - `Replicate`: copy the nearest edge pixel.
+/// - `Reflect`: mirror with edge duplication (the boundary pixel is repeated).
+/// - `Wrap`: tile the image periodically.
 pub(all) enum PadMode {
   Constant(Byte, Byte, Byte, Byte)
   Replicate
@@ -17,6 +26,10 @@ pub(all) enum PadMode {
 
 ///|
 /// Structuring element for morphological operations.
+///
+/// - `Cross(n)`: plus-shaped mask with radius `n` (arm length `n`).
+/// - `Square(n)`: full `(2n+1) x (2n+1)` box.
+/// - `Custom(mask)`: arbitrary boolean mask given as rows of booleans.
 pub(all) enum Kernel {
   Cross(Int)
   Square(Int)

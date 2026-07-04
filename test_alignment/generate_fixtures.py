@@ -947,7 +947,7 @@ def affine_transform(img, matrix, dst_h, dst_w):
 # Feature detection - numpy (matching millow)
 # ---------------------------------------------------------------------------
 
-def corner_harris(img, block_size, ksize, k):
+def corner_harris(img, k):
     """Corner detection matching millow's implementation."""
     gray = to_grayscale(img)
     h, w = img.shape[:2]
@@ -991,7 +991,7 @@ def corner_harris(img, block_size, ksize, k):
     return out.tolist()
 
 
-def corner_shi_tomasi(img, block_size, ksize):
+def corner_shi_tomasi(img):
     """Corner detection matching millow's implementation."""
     gray = to_grayscale(img)
     h, w = img.shape[:2]
@@ -1338,8 +1338,8 @@ def generate():
         "",
         "// ===== Feature detection =====",
         "",
-        arr2_to_moonbit("exp_corner_harris", corner_harris(grad, 2, 3, 0.04)),
-        arr2_to_moonbit("exp_corner_shi_tomasi", corner_shi_tomasi(grad, 2, 3)),
+        arr2_to_moonbit("exp_corner_harris", corner_harris(grad, 0.04)),
+        arr2_to_moonbit("exp_corner_shi_tomasi", corner_shi_tomasi(grad)),
         float_arr_to_moonbit("exp_hog", hog(grad, 2, 1, 9)),
         int_arr_to_moonbit("exp_lbp", lbp(grad, 1, 8)),
         int_arr_to_moonbit("exp_lbp_hist", lbp_histogram(grad, 1, 8)),

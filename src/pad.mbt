@@ -28,7 +28,16 @@ fn wrap_index(i : Int, n : Int) -> Int {
 }
 
 ///|
-/// Pad the image by the given margins using the chosen border mode.
+/// Pad the image by adding margins around it.
+///
+/// - `top`, `right`, `bottom`, `left`: margin sizes in pixels.
+/// - `mode`: `PadMode` controlling how the new border pixels are filled:
+///   - `Constant(r, g, b, a)` — fill with the given color.
+///   - `Replicate` — copy the nearest edge pixel.
+///   - `Reflect` — mirror with edge duplication.
+///   - `Wrap` — tile the source.
+///
+/// The output size is `(img.h + top + bottom, img.w + left + right)`.
 pub fn pad(
   img : Image,
   top : Int,
@@ -85,6 +94,12 @@ pub fn pad(
 
 ///|
 /// Center-pad the image to at least `h x w` using the chosen border mode.
+///
+/// - `h`, `w`: target minimum dimensions.
+/// - `mode`: `PadMode` for the new border pixels.
+///
+/// Padding is split evenly (left/top-biased on odd sizes). If the image
+/// already meets or exceeds a dimension, no padding is added on that axis.
 pub fn pad_to_size(img : Image, h : Int, w : Int, mode : PadMode) -> Image {
   let dh = clampi(h - img.h, 0, h)
   let dw = clampi(w - img.w, 0, w)

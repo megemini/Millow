@@ -6,6 +6,9 @@ fn luma(r : Byte, g : Byte, b : Byte) -> Int {
 
 ///|
 /// 256-bin luminance histogram.
+///
+/// Returns an array of length 256 where index `i` holds the number of pixels
+/// whose BT.601 luma equals `i`.
 pub fn histogram(img : Image) -> Array[Int] {
   let h = Array::make(256, 0)
   let n = img.h * img.w
@@ -19,6 +22,9 @@ pub fn histogram(img : Image) -> Array[Int] {
 
 ///|
 /// Per-channel histograms for R, G, B (each 256 bins).
+///
+/// Returns `[hr, hg, hb]` where each entry is a 256-element array of pixel
+/// counts for the corresponding channel.
 pub fn histogram_color(img : Image) -> Array[Array[Int]] {
   let hr = Array::make(256, 0)
   let hg = Array::make(256, 0)
@@ -38,7 +44,10 @@ pub fn histogram_color(img : Image) -> Array[Array[Int]] {
 
 ///|
 /// Histogram equalization applied to each RGB channel independently.
-/// Uses normalized CDF mapping (matches skimage).
+///
+/// Each channel is remapped through its normalized cumulative distribution
+/// function so the output spans the full `[0, 255]` range. The alpha channel
+/// is copied unchanged.
 pub fn equalize_histogram(img : Image) -> Image {
   let out = Image::new(img.h, img.w)
   let total = img.h * img.w
@@ -73,8 +82,12 @@ pub fn equalize_histogram(img : Image) -> Image {
 
 ///|
 /// CLAHE (Contrast-Limited Adaptive Histogram Equalization).
-/// Divides the image into `grid_size` tiles, clips histograms at `clip_limit`,
-/// equalizes each tile, and blends with bilinear interpolation.
+///
+/// Divides the image into `grid_size` tiles, clips each tile histogram at
+/// `clip_limit` (as a fraction of the tile pixel count) and redistributes the
+/// excess uniformly, equalizes each tile, and blends neighbouring tile LUTs
+/// with bilinear interpolation. Operates on luminance and emits a grayscale
+/// result; alpha is preserved.
 pub fn clahe(img : Image, clip_limit : Double, grid_size : (Int, Int)) -> Image {
   let (gh, gw) = grid_size
   let th = (img.h + gh - 1) / gh
@@ -170,6 +183,10 @@ pub fn clahe(img : Image, clip_limit : Double, grid_size : (Int, Int)) -> Image 
 ///|
 /// Histogram matching: adjust `img` so its luminance histogram matches
 /// `ref_img`.
+///
+/// Builds the luminance CDFs of both images and remaps each source pixel to
+/// the reference value whose CDF is closest. The alpha channel is copied
+/// unchanged.
 pub fn match_histogram(img : Image, ref_img : Image) -> Image {
   let hist_src = histogram(img)
   let hist_ref = histogram(ref_img)
@@ -208,6 +225,10 @@ pub fn match_histogram(img : Image, ref_img : Image) -> Image {
 
 ///|
 /// Histogram correlation coefficient between two images' luminance histograms.
+///
+/// Returns the Pearson correlation of the two 256-bin histograms, in
+/// `[-1.0, 1.0]`. Returns `0.0` when either image is empty or the denominator
+/// is zero.
 pub fn histogram_correlation(img : Image, ref_img : Image) -> Double {
   let h1 = histogram(img)
   let h2 = histogram(ref_img)

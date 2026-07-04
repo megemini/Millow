@@ -1,7 +1,7 @@
 ///|
 test "connected_components returns valid labels" {
   let img = Image::from_pixel(3, 3, 255, 255, 255, 255)
-  let (labels, num) = connected_components(img, 4)
+  let (labels, _) = connected_components(img, 4)
   assert_eq(labels.length(), 3)
 }
 

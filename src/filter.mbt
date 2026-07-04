@@ -9,6 +9,11 @@ fn at_clamped(img : Image, y : Int, x : Int, c : Int) -> Double {
 ///|
 /// General 2D convolution over the RGB channels (border: replicate).
 /// When `normalize` is true, the kernel is divided by its sum (if non-zero).
+///
+/// - `img`: input RGBA8 image; alpha is copied unchanged.
+/// - `kernel`: 2D weight matrix; the anchor is the centre (`kh/2, kw/2`).
+/// - `normalize`: divide the response by the kernel sum when `true`, by `1.0`
+///   otherwise.
 pub fn convolve(
   img : Image,
   kernel : Array[Array[Double]],
@@ -93,6 +98,12 @@ fn conv_1d(img : Image, k : Array[Double], horizontal : Bool) -> Image {
 
 ///|
 /// Gaussian blur with an explicit (odd) kernel size.
+///
+/// - `img`: input RGBA8 image; alpha is copied unchanged.
+/// - `ksize`: kernel diameter; an even value is rounded up to the next odd
+///   integer.
+/// - `sigma`: Gaussian standard deviation; weights are `exp(-d²/(2σ²))`
+///   normalised, applied as a separable 1D×1D pass with replicate borders.
 pub fn gaussian_blur_kernel(img : Image, ksize : Int, sigma : Double) -> Image {
   let ks = if ksize % 2 == 0 { ksize + 1 } else { ksize }
   let k = gaussian_kernel(ks, sigma)
@@ -101,6 +112,11 @@ pub fn gaussian_blur_kernel(img : Image, ksize : Int, sigma : Double) -> Image {
 
 ///|
 /// Gaussian blur; kernel size is derived from `sigma`.
+///
+/// - `img`: input RGBA8 image; alpha is copied unchanged.
+/// - `sigma`: Gaussian standard deviation. The kernel size is
+///   `clampi(ceil(sigma*3)*2+1, 3, 99)`; weights are `exp(-d²/(2σ²))`
+///   normalised, applied as a separable 1D×1D pass with replicate borders.
 pub fn gaussian_blur(img : Image, sigma : Double) -> Image {
   let radius = @math.ceil(sigma * 3.0).to_int()
   let ks = clampi(radius * 2 + 1, 3, 99)
@@ -109,6 +125,11 @@ pub fn gaussian_blur(img : Image, sigma : Double) -> Image {
 
 ///|
 /// Gaussian blur for double arrays (used for structure tensor smoothing).
+///
+/// - `arr`: 2D `h × w` array of doubles to smooth in place of an image.
+/// - `sigma`: Gaussian standard deviation; the kernel size is
+///   `clampi(ceil(sigma*3)*2+1, 3, 99)`. Out-of-bounds samples are treated
+///   as `0.0` (zero-padding), unlike the image variants which replicate.
 pub fn gaussian_blur_double(
   arr : Array[Array[Double]],
   sigma : Double,

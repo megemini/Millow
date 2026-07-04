@@ -68,12 +68,20 @@ fn morph(img : Image, k : Kernel, is_dilate : Bool) -> Image {
 
 ///|
 /// Morphological dilation.
+///
+/// Each output pixel is the maximum of the RGB channel values over the
+/// structuring element defined by `kernel`, growing bright regions. Border
+/// coordinates are clamped (replicate); alpha is preserved.
 pub fn dilate(img : Image, kernel : Kernel) -> Image {
   morph(img, kernel, true)
 }
 
 ///|
 /// Morphological erosion.
+///
+/// Each output pixel is the minimum of the RGB channel values over the
+/// structuring element defined by `kernel`, shrinking bright regions. Border
+/// coordinates are clamped (replicate); alpha is preserved.
 pub fn erode(img : Image, kernel : Kernel) -> Image {
   morph(img, kernel, false)
 }
@@ -97,30 +105,45 @@ fn sub_img(a : Image, b : Image) -> Image {
 
 ///|
 /// Opening: erosion followed by dilation.
+///
+/// Removes small bright foreground structures smaller than `kernel` while
+/// preserving the shape of larger regions.
 pub fn morph_open(img : Image, kernel : Kernel) -> Image {
   dilate(erode(img, kernel), kernel)
 }
 
 ///|
 /// Closing: dilation followed by erosion.
+///
+/// Fills small dark holes and gaps smaller than `kernel` while preserving the
+/// shape of larger regions.
 pub fn morph_close(img : Image, kernel : Kernel) -> Image {
   erode(dilate(img, kernel), kernel)
 }
 
 ///|
 /// Morphological gradient: dilation minus erosion.
+///
+/// Highlights region edges by computing the per-channel difference between the
+/// dilated and eroded images.
 pub fn morph_gradient(img : Image, kernel : Kernel) -> Image {
   sub_img(dilate(img, kernel), erode(img, kernel))
 }
 
 ///|
 /// Top-hat: original minus opening.
+///
+/// Isolates small bright structures smaller than `kernel` that are removed by
+/// the opening.
 pub fn top_hat(img : Image, kernel : Kernel) -> Image {
   sub_img(img, morph_open(img, kernel))
 }
 
 ///|
 /// Black-hat: closing minus original.
+///
+/// Isolates small dark structures smaller than `kernel` that are filled by the
+/// closing.
 pub fn black_hat(img : Image, kernel : Kernel) -> Image {
   sub_img(morph_close(img, kernel), img)
 }
@@ -128,6 +151,10 @@ pub fn black_hat(img : Image, kernel : Kernel) -> Image {
 ///|
 /// Skeletonize via iterative thinning (Zhang-Suen). Works on binary images
 /// (non-zero pixels are foreground).
+///
+/// Iteratively removes boundary pixels over two sub-iterations until no
+/// further pixels can be thinned, yielding a one-pixel-wide medial axis.
+/// Border pixels are left untouched.
 pub fn skeletonize(img : Image) -> Image {
   let mut cur = img.clone()
   let mut changed = true
@@ -188,6 +215,10 @@ pub fn skeletonize(img : Image) -> Image {
 ///|
 /// Hit-or-miss transform. The kernel values are: 1 = foreground, 0 = background,
 /// -1 = don't care. Only pixels matching the pattern are kept.
+///
+/// Treats non-zero RGB pixels as foreground. A pixel is set to white when its
+/// neighbourhood matches `kernel` exactly (foreground/background), and black
+/// otherwise. Output alpha is set to 255.
 pub fn hit_or_miss(img : Image, kernel : Array[Array[Int]]) -> Image {
   let kh = kernel.length()
   let kw = kernel[0].length()

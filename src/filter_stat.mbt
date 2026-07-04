@@ -30,7 +30,8 @@ fn window_map(img : Image, size : Int, reduce : (Array[Byte]) -> Byte) -> Image 
 }
 
 ///|
-/// Median filter with an odd window `size`.
+/// Median filter with an odd window `size`. Reduces salt-and-pepper noise
+/// while preserving edges. Uses replicate borders; alpha is copied unchanged.
 pub fn median_filter(img : Image, size : Int) -> Image {
   window_map(img, size, fn(vals) {
     vals.sort()
@@ -39,7 +40,9 @@ pub fn median_filter(img : Image, size : Int) -> Image {
 }
 
 ///|
-/// Maximum (dilation-like) filter with an odd window `size`.
+/// Maximum (dilation-like) filter with an odd window `size`. Each output
+/// pixel is the max over a `(2r+1)²` window with replicate borders; alpha
+/// is copied unchanged.
 pub fn max_filter(img : Image, size : Int) -> Image {
   window_map(img, size, fn(vals) {
     let mut m : Byte = 0
@@ -53,7 +56,9 @@ pub fn max_filter(img : Image, size : Int) -> Image {
 }
 
 ///|
-/// Minimum (erosion-like) filter with an odd window `size`.
+/// Minimum (erosion-like) filter with an odd window `size`. Each output
+/// pixel is the min over a `(2r+1)²` window with replicate borders; alpha
+/// is copied unchanged.
 pub fn min_filter(img : Image, size : Int) -> Image {
   window_map(img, size, fn(vals) {
     let mut m : Byte = 255
@@ -67,7 +72,8 @@ pub fn min_filter(img : Image, size : Int) -> Image {
 }
 
 ///|
-/// Laplacian-based sharpening. `strength` scales the high-frequency boost.
+/// Laplacian-based sharpening. `strength` scales the high-frequency boost;
+/// `0.0` returns the input unchanged.
 pub fn sharpen(img : Image, strength : Double) -> Image {
   let s = strength
   let kernel = [[0.0, -s, 0.0], [-s, 1.0 + 4.0 * s, -s], [0.0, -s, 0.0]]
@@ -76,6 +82,11 @@ pub fn sharpen(img : Image, strength : Double) -> Image {
 
 ///|
 /// Unsharp masking: add a scaled high-pass component above a threshold.
+///
+/// - `radius`: Gaussian blur radius used to derive the low-pass component.
+/// - `amount`: scaling factor applied to the high-pass residual.
+/// - `threshold`: only pixels whose `|orig - blurred|` ≥ `threshold` are
+///   boosted; smaller differences are passed through unchanged.
 pub fn unsharp_mask(
   img : Image,
   radius : Double,

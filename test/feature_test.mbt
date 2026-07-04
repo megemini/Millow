@@ -15,6 +15,6 @@ test "hog returns valid feature array" {
 ///|
 test "corner_harris returns valid response" {
   let img = Image::from_pixel(5, 5, 128, 128, 128, 255)
-  let response = corner_harris(img, 3, 3, 0.04)
+  let response = corner_harris(img, 0.04)
   assert_eq(response.length(), 5)
 }

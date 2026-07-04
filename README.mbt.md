@@ -38,11 +38,13 @@ Run `moon run cmd/main` to generate the following effects from
   bilateral filter, Sobel, Scharr, Prewitt, Laplacian, and Canny.
 - **Morphology** — erode, dilate, open, close, gradient, top-hat, black-hat.
 - **Feature detection** — LBP, HOG, Harris corner detection.
-- **Measurement** — connected components, moments, Hu moments.
+- **Measurement** — connected components, find contours, moments, Hu moments,
+  region properties.
 - **Data augmentation** — random crop, flip, rotate, brightness/contrast/gamma
   adjustment, Gaussian/salt-pepper noise, color jitter.
 - **Metrics** — MSE, PSNR, SSIM.
-- **Drawing** — pixels, lines, rectangles, and circles.
+- **Drawing** — pixels, lines, rectangles, circles, ellipses, polygons, and
+  flood fill.
 - **I/O** — PPM/PGM serialization plus a pluggable `Encoder`/`Decoder` registry.
 
 ## Project layout
@@ -136,7 +138,7 @@ Several operations support a `mode` parameter that controls how border pixels ar
 - `Wrap` — tiles the image periodically
 - `Constant(r, g, b, a)` — fills border regions with a constant color
 
-Functions supporting border modes include: `sobel`, `scharr`, `prewitt`, `laplacian`, `canny`, `lbp`, `bilateral_filter`, `affine_transform`, `rotate_any`, and `translate`.
+Functions supporting an optional `mode` parameter include `affine_transform` and `shear`. Most other operations use replicate (clamp) border handling internally.
 
 ### Bilateral filter
 

@@ -1,3 +1,4 @@
 import {
   "megemini/millow",
+  "moonbitlang/core/debug",
 }

@@ -1,5 +1,9 @@
 ///|
 /// Binarize by luminance: pixels with luma >= `thresh` become white.
+///
+/// Each pixel's BT.601 luma is compared against `thresh`; foreground pixels
+/// are set to white `(255, 255, 255)` and background pixels to black. The
+/// alpha channel is preserved.
 pub fn threshold(img : Image, thresh : Byte) -> Image {
   let t = thresh.to_int()
   map_rgba(img, fn(r, g, b, a) {
@@ -10,6 +14,9 @@ pub fn threshold(img : Image, thresh : Byte) -> Image {
 
 ///|
 /// Inverse binarization: pixels with luma >= `thresh` become black.
+///
+/// The inverse of `threshold`: foreground pixels (luma >= `thresh`) are set
+/// to black and background pixels to white. The alpha channel is preserved.
 pub fn threshold_inv(img : Image, thresh : Byte) -> Image {
   let t = thresh.to_int()
   map_rgba(img, fn(r, g, b, a) {
@@ -53,6 +60,11 @@ fn otsu(hist : Array[Int], total : Int) -> Int {
 
 ///|
 /// Otsu adaptive binarization. Returns the chosen threshold and the result.
+///
+/// Selects the threshold that maximizes the inter-class variance of the
+/// luminance histogram and applies `threshold`. The returned `Byte` is the
+/// applied cut (one above the background class) so values `>=` it are
+/// foreground.
 pub fn threshold_otsu(img : Image) -> (Byte, Image) {
   let total = img.h * img.w
   if total == 0 {
@@ -68,6 +80,10 @@ pub fn threshold_otsu(img : Image) -> (Byte, Image) {
 /// Sauvola local thresholding. Computes a threshold per pixel based on the
 /// local mean and standard deviation within a `window_size × window_size`
 /// window. Suitable for images with uneven illumination.
+///
+/// The per-pixel threshold is `mean * (1 + k * (std / 128 - 1))`. Border
+/// coordinates are clamped (replicate). `window_size` should be odd. Returns a
+/// binary image; alpha is preserved.
 pub fn threshold_sauvola(img : Image, window_size : Int, k : Double) -> Image {
   let r = window_size / 2
   let gray = to_grayscale(img)

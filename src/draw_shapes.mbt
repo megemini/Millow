@@ -1,5 +1,10 @@
 ///|
 /// Draw a rectangle. When `fill` is false, `width` sets the stroke thickness.
+///
+/// The rectangle spans rows `[y, y + h)` and columns `[x, x + w)`. When
+/// `fill` is true the interior is filled; otherwise a stroked outline of
+/// thickness `width` is drawn. Uses source-over alpha blending; the input
+/// image is not modified.
 pub fn draw_rect(
   img : Image,
   y : Int,
@@ -59,6 +64,11 @@ fn circle_points(
 
 ///|
 /// Draw a circle. When `fill` is false, `width` sets the stroke thickness.
+///
+/// Centred at `(cy, cx)` with the given `radius`. Filled circles scan each
+/// row over the implicit `x² + y² <= r²` disc; outlines use the midpoint
+/// circle algorithm. Uses source-over alpha blending; the input image is not
+/// modified.
 pub fn draw_circle(
   img : Image,
   cy : Int,
@@ -99,6 +109,11 @@ pub fn draw_circle(
 
 ///|
 /// Draw an ellipse. When `fill` is false, `width` sets the stroke thickness.
+///
+/// Centred at `(cy, cx)` with semi-axes `ry` (rows) and `rx` (columns).
+/// Outlines use the midpoint ellipse algorithm; filled ellipses scan each
+/// row over the implicit disc. Uses source-over alpha blending; the input
+/// image is not modified.
 pub fn draw_ellipse(
   img : Image,
   cy : Int,
@@ -176,6 +191,11 @@ pub fn draw_ellipse(
 
 ///|
 /// Draw a polygon. When `fill` is false, `width` sets the stroke thickness.
+///
+/// `points` is an array of `(y, x)` vertices connected in order, closing the
+/// path from the last back to the first. Filled polygons use a scanline fill;
+/// outlines call `draw_line` for each edge. Returns the input image unchanged
+/// when fewer than two vertices are supplied. The input image is not modified.
 pub fn draw_polygon(
   img : Image,
   points : Array[(Int, Int)],
@@ -242,6 +262,11 @@ pub fn draw_polygon(
 ///|
 /// Flood fill: replace the colour at `(y, x)` and all connected pixels of
 /// similar colour (within `tolerance`) with the new colour.
+///
+/// 4-connected BFS from the seed pixel; a pixel is replaced when each of its
+/// RGBA channels is within `tolerance` of the seed colour. Out-of-bounds seeds
+/// and no-op seeds (fill colour equals seed colour) return a clone of the
+/// input. The input image is not modified.
 pub fn flood_fill(
   img : Image,
   y : Int,

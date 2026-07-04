@@ -1,6 +1,11 @@
 ///|
 /// Border handling mode for convolution and interpolation operations.
-pub enum BorderMode {
+///
+/// - `Replicate`: clamp coordinates to the nearest edge pixel.
+/// - `Reflect`: mirror coordinates with edge duplication.
+/// - `Wrap`: tile coordinates periodically.
+/// - `Constant(r, g, b, a)`: use the given RGBA color outside the image.
+pub(all) enum BorderMode {
   Replicate
   Reflect
   Wrap

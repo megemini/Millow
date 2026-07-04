@@ -171,7 +171,8 @@ pub fn Image::from_channels(
 }
 
 ///|
-/// Read pixel at flat byte offset `idx` without bounds checking.
+/// Read pixel at flat pixel index `idx` without bounds checking.
+/// `idx` ranges over `[0, h * w)`; the byte offset is `idx * 4`.
 pub fn Image::pixel_at_unchecked(
   self : Image,
   idx : Int,
@@ -181,7 +182,8 @@ pub fn Image::pixel_at_unchecked(
 }
 
 ///|
-/// Write pixel at flat byte offset `idx` without bounds checking.
+/// Write pixel at flat pixel index `idx` without bounds checking.
+/// `idx` ranges over `[0, h * w)`; the byte offset is `idx * 4`.
 pub fn Image::pixel_set_unchecked(
   self : Image,
   idx : Int,
