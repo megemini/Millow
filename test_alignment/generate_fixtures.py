@@ -820,122 +820,101 @@ def _sample_bilinear_constant(img, fy, fx):
 
 
 def rotate_any(img, angle_deg, interp):
-    """Rotate (clockwise, matching millow)."""
-    import math
+    """Rotate (clockwise, matching millow) using a numpy reference.
+
+    Mirrors millow's `rotate_any` exactly: rotate by `angle_deg` clockwise
+    around the image center, expand the canvas to fit the rotated image, and
+    center the result so the source center maps to the canvas center. Border
+    samples use opaque black `(0, 0, 0, 255)`.
+    """
     h, w = img.shape[:2]
     rad = -math.radians(angle_deg)
     cos_a = math.cos(rad)
     sin_a = math.sin(rad)
     cx = w / 2.0
     cy = h / 2.0
-    
-    def transform_pt(x, y, m):
-        return (m[0] * x + m[1] * y + m[2], m[3] * x + m[4] * y + m[5])
-    
-    matrix = [cos_a, sin_a, 0.0, -sin_a, cos_a, 0.0]
-    t2, t5 = transform_pt(-cx, -cy, matrix)
-    matrix2 = [matrix[0], matrix[1], t2 + cx, matrix[3], matrix[4], t5 + cy]
-    
+    # matrix2: rotate around (cx, cy) — forward map.
+    t2 = -cx * cos_a - cy * sin_a + cx
+    t5 = cx * sin_a - cy * cos_a + cy
+    matrix2 = [cos_a, sin_a, t2, -sin_a, cos_a, t5]
     corners = [(0.0, 0.0), (w, 0.0), (w, h), (0.0, h)]
-    x_min = x_max = y_min = y_max = None
+    xs, ys = [], []
     for x, y in corners:
-        tx, ty = transform_pt(x, y, matrix2)
-        if x_min is None:
-            x_min = x_max = tx
-            y_min = y_max = ty
-        else:
-            x_min = min(x_min, tx)
-            x_max = max(x_max, tx)
-            y_min = min(y_min, ty)
-            y_max = max(y_max, ty)
-    
-    dst_w = int(math.ceil(x_max - x_min))
-    dst_h = int(math.ceil(y_max - y_min))
-    
-    t2_exp, t5_exp = transform_pt(-(dst_w - w) / 2.0, -(dst_h - h) / 2.0, matrix2)
-    matrix3 = [matrix2[0], matrix2[1], t2_exp, matrix2[3], matrix2[4], t5_exp]
-    
+        xs.append(cos_a * x + sin_a * y + t2)
+        ys.append(-sin_a * x + cos_a * y + t5)
+    dst_w = int(math.ceil(max(xs) - min(xs)))
+    dst_h = int(math.ceil(max(ys) - min(ys)))
+    # Center the rotated image in the expanded canvas.
+    dx_expand = (dst_w - w) / 2.0
+    dy_expand = (dst_h - h) / 2.0
+    matrix3 = [
+        matrix2[0], matrix2[1], matrix2[2] + dx_expand,
+        matrix2[3], matrix2[4], matrix2[5] + dy_expand,
+    ]
     if interp == "nearest":
         return _affine_transform_nearest(img, matrix3, dst_h, dst_w)
-    else:
-        return _affine_transform(img, matrix3, dst_h, dst_w)
+    return _affine_transform(img, matrix3, dst_h, dst_w)
 
 
 def _affine_transform_nearest(img, matrix, dst_h, dst_w):
-    """General affine transform with nearest neighbor interpolation (matching millow)."""
+    """Affine transform with nearest-neighbor sampling (matching millow)."""
     a, b, c, d, e, f = matrix
     det = a * e - b * d
     h, w = img.shape[:2]
     out = np.zeros((dst_h, dst_w, 4), dtype=np.uint8)
-    
     for y in range(dst_h):
         for x in range(dst_w):
-            xp = float(x)
-            yp = float(y)
-            sx = (e * xp - b * yp + b * f - e * c) / det
-            sy = (-d * xp + a * yp + d * c - a * f) / det
-            
+            sx = (e * x - b * y + b * f - e * c) / det
+            sy = (-d * x + a * y + d * c - a * f) / det
             if sx < 0.0 or sy < 0.0 or sx >= w or sy >= h:
                 out[y, x] = np.array([0, 0, 0, 255], dtype=np.uint8)
             else:
-                si = int(sy)
-                sj = int(sx)
-                si = max(0, min(h - 1, si))
-                sj = max(0, min(w - 1, sj))
+                si = max(0, min(h - 1, int(sy)))
+                sj = max(0, min(w - 1, int(sx)))
                 out[y, x] = img[si, sj]
-    
     return out
 
+
 def _affine_transform(img, matrix, dst_h, dst_w):
-    """General affine transform with bilinear interpolation (matching millow)."""
+    """Affine transform with bilinear sampling (matching millow)."""
     a, b, c, d, e, f = matrix
     det = a * e - b * d
     h, w = img.shape[:2]
     out = np.zeros((dst_h, dst_w, 4), dtype=np.uint8)
-    
-    def get_pixel_constant(y, x):
-        if 0 <= y < h and 0 <= x < w:
-            return img[y, x]
-        return np.array([0, 0, 0, 255], dtype=np.uint8)
-    
     for y in range(dst_h):
         for x in range(dst_w):
-            xp = float(x)
-            yp = float(y)
-            sx = (e * xp - b * yp + b * f - e * c) / det
-            sy = (-d * xp + a * yp + d * c - a * f) / det
-            
+            sx = (e * x - b * y + b * f - e * c) / det
+            sy = (-d * x + a * y + d * c - a * f) / det
             y0 = int(math.floor(sy))
             x0 = int(math.floor(sx))
             y1 = y0 + 1
             x1 = x0 + 1
             dy = sy - y0
             dx = sx - x0
-            
-            p00 = get_pixel_constant(y0, x0)
-            p01 = get_pixel_constant(y0, x1)
-            p10 = get_pixel_constant(y1, x0)
-            p11 = get_pixel_constant(y1, x1)
-            
-            for channel in range(3):
-                v00 = float(p00[channel])
-                v01 = float(p01[channel])
-                v10 = float(p10[channel])
-                v11 = float(p11[channel])
-                val = v00 * (1.0 - dy) * (1.0 - dx) + v01 * (1.0 - dy) * dx + v10 * dy * (1.0 - dx) + v11 * dy * dx
-                out[y, x, channel] = round_byte(val)
+            def gp(yy, xx):
+                if 0 <= yy < h and 0 <= xx < w:
+                    return img[yy, xx]
+                return np.array([0, 0, 0, 255], dtype=np.uint8)
+            p00 = gp(y0, x0); p01 = gp(y0, x1)
+            p10 = gp(y1, x0); p11 = gp(y1, x1)
+            for ch in range(3):
+                v = (p00[ch] * (1 - dy) * (1 - dx) + p01[ch] * (1 - dy) * dx +
+                     p10[ch] * dy * (1 - dx) + p11[ch] * dy * dx)
+                out[y, x, ch] = round_byte(v)
             out[y, x, 3] = p00[3]
-    
     return out
 
 
 def translate(img, dy, dx, interp="bilinear"):
-    """Translate (matching millow)."""
+    """Translate (matching millow) using the affine transform.
+
+    millow's forward map is `dst = src + (-dx, -dy)`. Output keeps the source
+    dimensions; uncovered pixels become opaque black.
+    """
     matrix = [1.0, 0.0, -dx, 0.0, 1.0, -dy]
     if interp == "nearest":
         return _affine_transform_nearest(img, matrix, img.shape[0], img.shape[1])
-    else:
-        return _affine_transform(img, matrix, img.shape[0], img.shape[1])
+    return _affine_transform(img, matrix, img.shape[0], img.shape[1])
 
 
 def affine_transform(img, matrix, dst_h, dst_w):

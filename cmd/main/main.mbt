@@ -173,6 +173,38 @@ fn main {
   println("28. find_contours(\{contours.length()} found) - saved")
   println(" ")
 
+  // === Data augmentation ===
+  // Compose multiple augmentations into a single pipeline.
+  let augmented = @millow.augment_pipeline(canvas, [
+    @millow.Augmentation::FlipHorizontal,
+    @millow.Augmentation::Rotate(15.0),
+    @millow.Augmentation::Brightness(1.2),
+    @millow.Augmentation::Contrast(1.3),
+    @millow.Augmentation::NoiseGaussian(8.0),
+  ]) catch {
+    _ => {
+      println("Error: augment_pipeline failed")
+      return
+    }
+  }
+  save_jpg(augmented, "demo_output/29_augment_pipeline.jpg")
+  println("29. augment_pipeline (5 ops) - saved")
+
+  // Randomly pick one augmentation from a weighted list.
+  let choice = @millow.augment_random_choice(canvas, [
+    (0.4, @millow.Augmentation::FlipVertical),
+    (0.4, @millow.Augmentation::Gamma(0.8)),
+    (0.2, @millow.Augmentation::ColorJitter(0.2, 0.2, 0.0, 0.0)),
+  ]) catch {
+    _ => {
+      println("Error: augment_random_choice failed")
+      return
+    }
+  }
+  save_jpg(choice, "demo_output/30_augment_random_choice.jpg")
+  println("30. augment_random_choice - saved")
+  println(" ")
+
   // === Metrics ===
   println("Quality metrics:")
   println("  PSNR(original, blurred) = \{@millow.psnr(canvas, blur)} dB")
@@ -181,7 +213,7 @@ fn main {
   println(" ")
 
   println("=== Demo complete! ===")
-  println("Generated 28 output images (JPEG) in demo_output/ directory.")
+  println("Generated 30 output images (JPEG) in demo_output/ directory.")
 }
 
 ///|

@@ -17,9 +17,10 @@ Run `moon run cmd/main` to generate the following effects from
 |:---:|:---:|:---:|:---:|
 | ![sharpen](docs/images/demo_sharpen.jpg) | ![sobel](docs/images/demo_sobel.jpg) | ![equalize](docs/images/demo_equalize_histogram.jpg) | ![otsu](docs/images/demo_threshold_otsu.jpg) |
 
-| `rotate_any(45°)` | `find_contours` |
-|:---:|:---:|
+| `rotate_any(45°)` | `find_contours` | `pipeline` |
+|:---:|:---:|:---:|
 | ![rotate](docs/images/demo_rotate_45.jpg) | ![contours](docs/images/demo_contours.jpg) |
+ ![pipeline](docs/images/demo_pipeline.jpg) |
 
 ## Features
 
@@ -104,6 +105,48 @@ test "build, transform and inspect an image" {
 > In the examples above the API is called unqualified because they run inside
 > the `millow` package itself. From another module, prefix each name with the
 > import alias, e.g. `@millow.to_grayscale(img)`.
+
+## Augmentation pipeline
+
+Compose multiple augmentations into a single pass with `augment_pipeline`,
+which applies each `Augmentation` variant left-to-right:
+
+```mbt nocheck
+///|
+test "augment_pipeline example" {
+  let img = Image::from_pixel(64, 64, 30, 60, 90, 255)
+  let out = augment_pipeline(img, [
+    FlipHorizontal,
+    Rotate(15.0),
+    Brightness(1.2),
+    Contrast(1.3),
+    NoiseGaussian(8.0),
+  ])
+  assert_true(out.h > 0 && out.w > 0)
+}
+```
+
+Available `Augmentation` variants: `Crop(y, x, h, w)`, `Resize(dst_h, dst_w)`,
+`FlipHorizontal`, `FlipVertical`, `Rotate(angle)`, `Brightness(factor)`,
+`Contrast(factor)`, `Gamma(g)`, `NoiseGaussian(std)`, `NoiseSaltPepper(prob)`,
+`ColorJitter(b, c, s, h)`. `augment_pipeline` may raise on invalid crop/resize
+arguments.
+
+To sample one augmentation from a weighted distribution, use
+`augment_random_choice`:
+
+```mbt nocheck
+///|
+test "augment_random_choice example" {
+  let img = Image::from_pixel(64, 64, 30, 60, 90, 255)
+  let out = augment_random_choice(img, [
+    (0.4, FlipVertical),
+    (0.4, Gamma(0.8)),
+    (0.2, ColorJitter(0.2, 0.2, 0.0, 0.0)),
+  ])
+  assert_eq(out.shape(), img.shape())
+}
+```
 
 ## API notes
 
