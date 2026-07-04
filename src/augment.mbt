@@ -153,15 +153,19 @@ pub fn random_noise_salt_pepper(img : Image, prob : Double) -> Image {
 ///|
 /// Random colour jitter (brightness, contrast, saturation, hue).
 ///
-/// Applies `random_brightness` and `random_contrast` when their magnitudes are
-/// positive. Saturation and hue jitter are accepted but not yet applied
-/// (HSV conversion is not wired through).
+/// Applies brightness and contrast jitter (multiplicative, via
+/// `random_brightness` / `random_contrast`) when their magnitudes are
+/// positive. Saturation jitter scales the HSV S channel by a factor sampled
+/// from `[1-saturation, 1+saturation]` (clamped to `[0, 1]`). Hue jitter
+/// shifts the H channel by a uniform sample in `[-hue, hue]` degrees
+/// (wrapped to `[0, 360)`). The HSV round-trip is done once when either
+/// saturation or hue is requested.
 pub fn random_color_jitter(
   img : Image,
   brightness : Double,
   contrast : Double,
-  _saturation : Double,
-  _hue : Double,
+  saturation : Double,
+  hue : Double,
 ) -> Image {
   let mut out = img.clone()
   if brightness > 0.0 {
@@ -170,7 +174,32 @@ pub fn random_color_jitter(
   if contrast > 0.0 {
     out = random_contrast(out, contrast)
   }
-  // Saturation and hue jitter require HSV conversion; placeholder for now
+  if saturation > 0.0 || hue > 0.0 {
+    let rng = @random.Rand::new()
+    let s_factor = if saturation > 0.0 {
+      1.0 + (2.0 * rng.double() - 1.0) * saturation
+    } else {
+      1.0
+    }
+    let h_shift = if hue > 0.0 { (2.0 * rng.double() - 1.0) * hue } else { 0.0 }
+    let (h_arr, s_arr, v_arr) = to_hsv(out)
+    let rows = h_arr.length()
+    let cols = if rows == 0 { 0 } else { h_arr[0].length() }
+    for y = 0; y < rows; y = y + 1 {
+      for x = 0; x < cols; x = x + 1 {
+        s_arr[y][x] = (s_arr[y][x] * s_factor).max(0.0).min(1.0)
+        let mut new_h = h_arr[y][x] + h_shift
+        if new_h < 0.0 {
+          new_h = new_h + 360.0
+        }
+        if new_h >= 360.0 {
+          new_h = new_h - 360.0
+        }
+        h_arr[y][x] = new_h
+      }
+    }
+    out = from_hsv(h_arr, s_arr, v_arr)
+  }
   out
 }
 

@@ -21,15 +21,9 @@ pub fn corner_harris(img : Image, k : Double) -> Array[Array[Double]] {
     [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]],
     Constant(0, 0, 0, 0),
   )
-  let gx2 = Array::makei(img.h, fn(y) {
-    Array::make(img.w, gx[y][0] * gx[y][0])
-  })
-  let gy2 = Array::makei(img.h, fn(y) {
-    Array::make(img.w, gy[y][0] * gy[y][0])
-  })
-  let gxy = Array::makei(img.h, fn(y) {
-    Array::make(img.w, gx[y][0] * gy[y][0])
-  })
+  let gx2 = Array::makei(img.h, fn(_i) { Array::make(img.w, 0.0) })
+  let gy2 = Array::makei(img.h, fn(_i) { Array::make(img.w, 0.0) })
+  let gxy = Array::makei(img.h, fn(_i) { Array::make(img.w, 0.0) })
   for y = 0; y < img.h; y = y + 1 {
     for x = 0; x < img.w; x = x + 1 {
       gx2[y][x] = gx[y][x] * gx[y][x]
@@ -71,15 +65,9 @@ pub fn corner_shi_tomasi(img : Image) -> Array[Array[Double]] {
     [[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]],
     Constant(0, 0, 0, 0),
   )
-  let gx2 = Array::makei(img.h, fn(y) {
-    Array::make(img.w, gx[y][0] * gx[y][0])
-  })
-  let gy2 = Array::makei(img.h, fn(y) {
-    Array::make(img.w, gy[y][0] * gy[y][0])
-  })
-  let gxy = Array::makei(img.h, fn(y) {
-    Array::make(img.w, gx[y][0] * gy[y][0])
-  })
+  let gx2 = Array::makei(img.h, fn(_i) { Array::make(img.w, 0.0) })
+  let gy2 = Array::makei(img.h, fn(_i) { Array::make(img.w, 0.0) })
+  let gxy = Array::makei(img.h, fn(_i) { Array::make(img.w, 0.0) })
   for y = 0; y < img.h; y = y + 1 {
     for x = 0; x < img.w; x = x + 1 {
       gx2[y][x] = gx[y][x] * gx[y][x]

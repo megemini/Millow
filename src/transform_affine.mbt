@@ -62,20 +62,7 @@ fn affine(
       let sy = (-d * xp + a * yp + d * c - a * f) / det
       let o = out.offset(y, x)
       let (r, g, bb, a_val) = match interp {
-        Nearest =>
-          if sx < 0.0 ||
-            sy < 0.0 ||
-            sx >= img.w.to_double() ||
-            sy >= img.h.to_double() {
-            match mode {
-              Constant(cr, cg, cb, ca) => (cr, cg, cb, ca)
-              _ => img.pixel_at_unchecked(0)
-            }
-          } else {
-            let si = clampi(sy.to_int(), 0, img.h - 1)
-            let sj = clampi(sx.to_int(), 0, img.w - 1)
-            img.pixel_at_unchecked(si * img.w + sj)
-          }
+        Nearest => get_pixel(img, sy.to_int(), sx.to_int(), mode)
         _ => sample_bilinear_mode(img, sy, sx, mode)
       }
       out.data[o] = r
