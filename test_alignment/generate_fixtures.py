@@ -6,7 +6,7 @@ numpy to match millow's exact implementation, and writes the input + expected-ou
 byte arrays to ``fixtures_test.mbt`` as ``Array[Int]`` literals.
 
 Usage:
-    source /home/shun/venv310/bin/activate
+    source $HOME/venv310/bin/activate
     python generate_fixtures.py
 
 The generated file is checked into version control; re-run only when millow's

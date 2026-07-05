@@ -252,7 +252,7 @@ moon run cmd/main         # 运行演示管线
 修改算法后重新生成 fixture：
 
 ```
-source /home/shun/venv310/bin/activate
+source $HOME/venv310/bin/activate
 python test_alignment/generate_fixtures.py
 moon test
 ```

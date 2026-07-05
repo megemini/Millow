@@ -195,7 +195,7 @@ Violating it is the most common source of off-by-one and axis-swap bugs.
 **Workflow** (run after changing any algorithm):
 
 ```bash
-source /home/shun/venv310/bin/activate   # project Python env
+source $HOME/venv310/bin/activate   # project Python env
 python test_alignment/generate_fixtures.py  # regenerates fixtures_test.mbt
 moon test                                   # all tests must pass
 ```

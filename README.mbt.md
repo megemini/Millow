@@ -259,7 +259,7 @@ is:
 Regenerate the fixtures after changing an algorithm:
 
 ```
-source /home/shun/venv310/bin/activate
+source $HOME/venv310/bin/activate
 python test_alignment/generate_fixtures.py
 moon test
 ```
