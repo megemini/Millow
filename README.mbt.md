@@ -25,9 +25,6 @@ cd examples
 moon run .
 ```
 
-Run `moon run cmd/main` to generate the following effects from
-`docs/images/lena_ai_generated.png`:
-
 | Input | `to_grayscale` | `tint(100,150,200)` | `gaussian_blur(σ=2)` |
 |:---:|:---:|:---:|:---:|
 | <img src="docs/images/lena_ai_generated.png" width="200"> | <img src="docs/images/demo_grayscale.jpg" width="200"> | <img src="docs/images/demo_tint.jpg" width="200"> | <img src="docs/images/demo_gaussian_blur.jpg" width="200"> |

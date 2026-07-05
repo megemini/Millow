@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3.0 (2026-07-05)
+
+### Changed
+- **millow no longer depends on `moonbitlang/x` or `mizchi/image`** — the library is now fully self-contained (only uses `moonbitlang/core`). The full-featured demo (with PNG/JPEG I/O via `mizchi/image` and `moonbitlang/x/fs`) has been moved to `examples/` as a standalone project. `cmd/main` now contains a lightweight synthetic-image demo that only requires `millow` itself.
+
+### CI/CD
+- Simplified `.github/workflows/ci.yml` — removed `moon add` dependency installation steps since millow has no third-party deps. CI now runs `moon fmt --check`, `moon test`, and multi-backend builds (wasm-gc / wasm / js / native).
+
 ## v0.2.1 (2026-07-04)
 
 ### Performance

@@ -23,8 +23,6 @@ cd examples
 moon run .
 ```
 
-运行 `moon run cmd/main` 可从 `docs/images/lena_ai_generated.png` 生成以下效果：
-
 | 输入 | `to_grayscale` | `tint(100,150,200)` | `gaussian_blur(σ=2)` |
 |:---:|:---:|:---:|:---:|
 | <img src="docs/images/lena_ai_generated.png" width="200"> | <img src="docs/images/demo_grayscale.jpg" width="200"> | <img src="docs/images/demo_tint.jpg" width="200"> | <img src="docs/images/demo_gaussian_blur.jpg" width="200"> |
