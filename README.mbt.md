@@ -10,6 +10,18 @@ and builds on every backend: `wasm-gc`, `wasm`, `js`, and `native`.
 
 ## Demo
 
+| Input | `to_grayscale` | `tint(100,150,200)` | `gaussian_blur(σ=2)` |
+|:---:|:---:|:---:|:---:|
+| <img src="docs/images/lena_ai_generated.png" width="200"> | <img src="docs/images/demo_grayscale.jpg" width="200"> | <img src="docs/images/demo_tint.jpg" width="200"> | <img src="docs/images/demo_gaussian_blur.jpg" width="200"> |
+
+| `sharpen(1.0)` | `sobel` | `equalize_histogram` | `threshold_otsu` |
+|:---:|:---:|:---:|:---:|
+| <img src="docs/images/demo_sharpen.jpg" width="200"> | <img src="docs/images/demo_sobel.jpg" width="200"> | <img src="docs/images/demo_equalize_histogram.jpg" width="200"> | <img src="docs/images/demo_threshold_otsu.jpg" width="200"> |
+
+| `rotate_any(45°)` | `find_contours` | `pipeline` |
+|:---:|:---:|:---:|
+| <img src="docs/images/demo_rotate_45.jpg" width="200"> | <img src="docs/images/demo_contours.jpg" width="200"> | <img src="docs/images/demo_pipeline.jpg" width="200"> |
+
 `cmd/main` contains a lightweight demo that generates a synthetic gradient
 image and applies 30+ millow operations — no external dependencies required:
 
@@ -24,18 +36,6 @@ standalone `examples/` project:
 cd examples
 moon run .
 ```
-
-| Input | `to_grayscale` | `tint(100,150,200)` | `gaussian_blur(σ=2)` |
-|:---:|:---:|:---:|:---:|
-| <img src="docs/images/lena_ai_generated.png" width="200"> | <img src="docs/images/demo_grayscale.jpg" width="200"> | <img src="docs/images/demo_tint.jpg" width="200"> | <img src="docs/images/demo_gaussian_blur.jpg" width="200"> |
-
-| `sharpen(1.0)` | `sobel` | `equalize_histogram` | `threshold_otsu` |
-|:---:|:---:|:---:|:---:|
-| <img src="docs/images/demo_sharpen.jpg" width="200"> | <img src="docs/images/demo_sobel.jpg" width="200"> | <img src="docs/images/demo_equalize_histogram.jpg" width="200"> | <img src="docs/images/demo_threshold_otsu.jpg" width="200"> |
-
-| `rotate_any(45°)` | `find_contours` | `pipeline` |
-|:---:|:---:|:---:|
-| <img src="docs/images/demo_rotate_45.jpg" width="200"> | <img src="docs/images/demo_contours.jpg" width="200"> | <img src="docs/images/demo_pipeline.jpg" width="200"> |
 
 ## Features
 
