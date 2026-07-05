@@ -10,6 +10,21 @@ and builds on every backend: `wasm-gc`, `wasm`, `js`, and `native`.
 
 ## Demo
 
+`cmd/main` contains a lightweight demo that generates a synthetic gradient
+image and applies 30+ millow operations — no external dependencies required:
+
+```
+moon run cmd/main
+```
+
+For the full-featured demo (PNG/JPEG I/O, 30 output images), use the
+standalone `examples/` project:
+
+```
+cd examples
+moon run .
+```
+
 Run `moon run cmd/main` to generate the following effects from
 `docs/images/lena_ai_generated.png`:
 
@@ -59,7 +74,8 @@ millow/
 ├── millow.mbt        # root facade: re-exports the public API (megemini/millow)
 ├── test/             # blackbox test package exercising the public API
 ├── test_alignment/   # alignment tests against Python (skimage/Pillow) reference
-└── cmd/main/         # runnable end-to-end demo
+├── cmd/main/         # lightweight synthetic-image demo (millow-only)
+└── examples/         # standalone full demo (PNG/JPEG I/O via mizchi/image)
 ```
 
 The root package is a thin **facade** over `src`, so downstream users just
@@ -240,7 +256,8 @@ Use `rotate_any` and `translate` for common transformations.
 ```
 moon test                 # run every test
 moon test --target native # pick a backend
-moon run cmd/main         # run the demo pipeline
+moon run cmd/main         # run the synthetic demo (no external deps)
+cd examples && moon run . # run the full demo with JPEG I/O
 ```
 
 ### Alignment tests

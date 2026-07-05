@@ -11,7 +11,7 @@
 
 name = "megemini/millow"
 
-version = "0.2.1"
+version = "0.3.0"
 
 readme = "README.mbt.md"
 
@@ -22,8 +22,3 @@ license = "Apache-2.0"
 keywords = [ "image", "image-processing", "graphics", "pixel" ]
 
 description = "A zero-FFI, cross-platform image-processing library for MoonBit."
-
-import {
-  "moonbitlang/x@0.4.46",
-  "mizchi/image@0.4.2",
-}

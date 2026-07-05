@@ -1,8 +1,8 @@
 # Millow Roadmap
 
-**Last updated**: 2026-07-04 | **Current version**: v0.2.0
+**Last updated**: 2026-07-05 | **Current version**: v0.3.0
 
-## Current State (v0.2.0)
+## Current State (v0.3.0)
 
 Millow is a zero-FFI, cross-platform image-processing library for MoonBit.
 It operates on in-memory RGBA8 buffers and runs on every backend: `wasm-gc`,

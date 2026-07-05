@@ -1,181 +1,154 @@
 ///|
-/// Comprehensive demonstration of the `millow` image-processing library.
-/// Reads an image, applies various operations, and saves results as JPEG.
-/// Run with `moon run cmd/main`.
+/// Lightweight millow demo that depends only on the millow library itself.
+/// Generates a synthetic gradient image and applies various operations,
+/// printing info at each step. No external image I/O required.
+/// Run with `moon run cmd/main` from the project root.
 fn main {
-  println("=== millow Demo ===")
+  println("=== millow Demo (synthetic) ===")
   println(" ")
 
-  // Read and decode the input image
-  let input_path = "docs/images/lena_ai_generated.png"
-  let img_bytes = @fs.read_file_to_bytes(input_path) catch {
-    _ => {
-      println("Error: cannot read \{input_path}")
-      return
+  // Create a synthetic 128x128 gradient image
+  let h = 128
+  let w = 128
+  let img = @millow.Image::new(h, w)
+  for y = 0; y < h; y = y + 1 {
+    for x = 0; x < w; x = x + 1 {
+      let o = (y * w + x) * 4
+      img.data[o] = (x * 2 % 256).to_byte()
+      img.data[o + 1] = (y * 2 % 256).to_byte()
+      img.data[o + 2] = ((x + y) % 256).to_byte()
+      img.data[o + 3] = 255
     }
   }
-  let img_data = decode_image(img_bytes) catch {
-    _ => {
-      println("Error: cannot decode image")
-      return
-    }
-  }
-  let full = image_data_to_millow(img_data)
-  // Resize to 640px wide for smaller output files
-  let ratio = 640.0 / full.w.to_double()
-  let dst_h = (full.h.to_double() * ratio).to_int()
-  let canvas = @millow.resize(full, dst_h, 640, @millow.Interp::Bilinear)
-  println(
-    "Loaded image: \{@millow.info(full)} -> resized to \{@millow.info(canvas)}",
-  )
+  println("Created synthetic image: \{@millow.info(img)}")
   println(" ")
-
-  // Create output directory
-  @fs.create_dir("demo_output") catch {
-    _ => ()
-  }
 
   // === Color operations ===
-  let gray = @millow.to_grayscale(canvas)
-  save_jpg(gray, "demo_output/01_grayscale.jpg")
-  println("1. to_grayscale - saved")
+  let gray = @millow.to_grayscale(img)
+  println("1. to_grayscale: \{@millow.info(gray)}")
 
-  let inverted = @millow.invert(canvas)
-  save_jpg(inverted, "demo_output/02_inverted.jpg")
-  println("2. invert - saved")
+  let inverted = @millow.invert(img)
+  println("2. invert: \{@millow.info(inverted)}")
 
-  let tinted = @millow.tint(canvas, 100, 150, 200)
-  save_jpg(tinted, "demo_output/03_tinted.jpg")
-  println("3. tint(100,150,200) - saved")
+  let tinted = @millow.tint(img, 100, 150, 200)
+  println("3. tint(100,150,200): \{@millow.info(tinted)}")
   println(" ")
 
-  // === Enhancement operations ===
-  let bright = @millow.adjust_brightness(canvas, 30)
-  save_jpg(bright, "demo_output/04_brightness.jpg")
-  println("4. adjust_brightness(+30) - saved")
+  // === Enhancement ===
+  let bright = @millow.adjust_brightness(img, 30)
+  println("4. adjust_brightness(+30): \{@millow.info(bright)}")
 
-  let contrast = @millow.adjust_contrast(canvas, 1.5)
-  save_jpg(contrast, "demo_output/05_contrast.jpg")
-  println("5. adjust_contrast(1.5) - saved")
+  let contrast = @millow.adjust_contrast(img, 1.5)
+  println("5. adjust_contrast(1.5): \{@millow.info(contrast)}")
 
-  let gamma = @millow.adjust_gamma(canvas, 1.5)
-  save_jpg(gamma, "demo_output/06_gamma.jpg")
-  println("6. adjust_gamma(1.5) - saved")
+  let gamma = @millow.adjust_gamma(img, 1.5)
+  println("6. adjust_gamma(1.5): \{@millow.info(gamma)}")
 
-  let sharpened = @millow.sharpen(canvas, 1.0)
-  save_jpg(sharpened, "demo_output/07_sharpen.jpg")
-  println("7. sharpen - saved")
+  let sharpened = @millow.sharpen(img, 1.0)
+  println("7. sharpen(1.0): \{@millow.info(sharpened)}")
   println(" ")
 
-  // === Filter operations ===
-  let blur = @millow.gaussian_blur(canvas, 2.0)
-  save_jpg(blur, "demo_output/08_gaussian_blur.jpg")
-  println("8. gaussian_blur(sigma=2.0) - saved")
+  // === Filters ===
+  let blurred = @millow.gaussian_blur(img, 2.0)
+  println("8. gaussian_blur(σ=2.0): \{@millow.info(blurred)}")
 
-  let median = @millow.median_filter(canvas, 3)
-  save_jpg(median, "demo_output/09_median_filter.jpg")
-  println("9. median_filter(kernel=3) - saved")
+  let median = @millow.median_filter(img, 3)
+  println("9. median_filter(3): \{@millow.info(median)}")
 
   let bilateral = @millow.bilateral_filter(gray, 5, 10.0, 10.0)
-  save_jpg(bilateral, "demo_output/10_bilateral_filter.jpg")
-  println("10. bilateral_filter - saved")
+  println("10. bilateral_filter: \{@millow.info(bilateral)}")
   println(" ")
 
   // === Edge detection ===
   let sobel = @millow.sobel(gray)
-  save_jpg(sobel, "demo_output/11_sobel.jpg")
-  println("11. sobel - saved")
+  println("11. sobel: \{@millow.info(sobel)}")
 
   let scharr = @millow.scharr(gray)
-  save_jpg(scharr, "demo_output/12_scharr.jpg")
-  println("12. scharr - saved")
+  println("12. scharr: \{@millow.info(scharr)}")
 
   let laplacian = @millow.laplacian(gray)
-  save_jpg(laplacian, "demo_output/13_laplacian.jpg")
-  println("13. laplacian - saved")
+  println("13. laplacian: \{@millow.info(laplacian)}")
   println(" ")
 
   // === Morphology ===
   let eroded = @millow.erode(gray, @millow.Kernel::Square(3))
-  save_jpg(eroded, "demo_output/14_erode.jpg")
-  println("14. erode - saved")
+  println("14. erode: \{@millow.info(eroded)}")
 
   let dilated = @millow.dilate(gray, @millow.Kernel::Square(3))
-  save_jpg(dilated, "demo_output/15_dilate.jpg")
-  println("15. dilate - saved")
+  println("15. dilate: \{@millow.info(dilated)}")
 
   let morph_open = @millow.morph_open(gray, @millow.Kernel::Square(3))
-  save_jpg(morph_open, "demo_output/16_morph_open.jpg")
-  println("16. morph_open - saved")
+  println("16. morph_open: \{@millow.info(morph_open)}")
 
   let morph_close = @millow.morph_close(gray, @millow.Kernel::Square(3))
-  save_jpg(morph_close, "demo_output/17_morph_close.jpg")
-  println("17. morph_close - saved")
+  println("17. morph_close: \{@millow.info(morph_close)}")
   println(" ")
 
   // === Geometry ===
-  let rotated = @millow.rotate_any(canvas, 45.0, @millow.Interp::Bilinear)
-  save_jpg(rotated, "demo_output/18_rotate_45.jpg")
-  println("18. rotate_any(45) - saved")
+  let rotated = @millow.rotate_any(img, 45.0, @millow.Interp::Bilinear)
+  println("18. rotate_any(45°): \{@millow.info(rotated)}")
 
-  let flipped_h = @millow.flip_horizontal(canvas)
-  save_jpg(flipped_h, "demo_output/19_flip_horizontal.jpg")
-  println("19. flip_horizontal - saved")
+  let flipped_h = @millow.flip_horizontal(img)
+  println("19. flip_horizontal: \{@millow.info(flipped_h)}")
 
-  let flipped_v = @millow.flip_vertical(canvas)
-  save_jpg(flipped_v, "demo_output/20_flip_vertical.jpg")
-  println("20. flip_vertical - saved")
+  let flipped_v = @millow.flip_vertical(img)
+  println("20. flip_vertical: \{@millow.info(flipped_v)}")
 
-  let (oh, ow) = canvas.shape()
-  let resized = @millow.resize(canvas, oh / 2, ow / 2, @millow.Interp::Bilinear)
-  save_jpg(resized, "demo_output/21_resize_half.jpg")
-  println("21. resize(50%) - saved")
+  let resized = @millow.resize(img, 64, 64, @millow.Interp::Bilinear)
+  println("21. resize(64x64): \{@millow.info(resized)}")
 
-  let translated = @millow.translate(
-    canvas,
-    20.0,
-    20.0,
-    @millow.Interp::Bilinear,
-  )
-  save_jpg(translated, "demo_output/22_translate.jpg")
-  println("22. translate(20,20) - saved")
+  let translated = @millow.translate(img, 20.0, 20.0, @millow.Interp::Bilinear)
+  println("22. translate(20,20): \{@millow.info(translated)}")
   println(" ")
 
   // === Threshold & Histogram ===
   let (otsu_thr, otsu_binary) = @millow.threshold_otsu(gray)
-  save_jpg(otsu_binary, "demo_output/23_threshold_otsu.jpg")
-  println("23. threshold_otsu(thr=\{otsu_thr.to_int()}) - saved")
+  println(
+    "23. threshold_otsu(thr=\{otsu_thr.to_int()}): \{@millow.info(otsu_binary)}",
+  )
 
   let equalized = @millow.equalize_histogram(gray)
-  save_jpg(equalized, "demo_output/24_equalize_histogram.jpg")
-  println("24. equalize_histogram - saved")
+  println("24. equalize_histogram: \{@millow.info(equalized)}")
+
+  let sauvola_binary = @millow.threshold_sauvola(gray, 15, 0.2)
+  println("25. threshold_sauvola: \{@millow.info(sauvola_binary)}")
   println(" ")
 
   // === Feature detection ===
   let corners = @millow.corner_harris(gray, 0.04)
-  let corners_vis = visualize_corners(canvas, corners)
-  save_jpg(corners_vis, "demo_output/25_corner_harris.jpg")
-  println("25. corner_harris - saved")
+  let corner_count = {
+    let mut n = 0
+    for row in corners {
+      for v in row {
+        if v > 0.1 {
+          n = n + 1
+        }
+      }
+    }
+    n
+  }
+  println("26. corner_harris: \{corner_count} corners above 0.1")
 
   let lbp_codes = @millow.lbp(gray, 1, 8)
-  let lbp_img = lbp_to_image(lbp_codes, gray.h, gray.w)
-  save_jpg(lbp_img, "demo_output/26_lbp.jpg")
-  println("26. lbp(radius=1, n=8) - saved")
+  println("27. lbp(radius=1, n=8): \{lbp_codes.length()} codes")
   println(" ")
 
   // === Measurement ===
-  let (_labels, count) = @millow.connected_components(otsu_binary, 4)
-  println("27. connected_components: \{count} components")
+  let (_labels, cc_count) = @millow.connected_components(otsu_binary, 4)
+  println("28. connected_components: \{cc_count} components")
 
   let contours = @millow.find_contours(otsu_binary)
-  let contour_img = draw_contours(canvas, contours)
-  save_jpg(contour_img, "demo_output/28_contours.jpg")
-  println("28. find_contours(\{contours.length()} found) - saved")
+  println("29. find_contours: \{contours.length()} contours found")
+
+  let m = @millow.moments(gray)
+  println("30. moments: m00=\{m[0]}, centroid=(\{m[1] / m[0]}, \{m[2] / m[0]})")
+
+  let hu = @millow.hu_moments(gray)
+  println("31. hu_moments: \{hu.length()} values (h1=\{hu[0]})")
   println(" ")
 
-  // === Data augmentation ===
-  // Compose multiple augmentations into a single pipeline.
-  let augmented = @millow.augment_pipeline(canvas, [
+  // === Augmentation pipeline ===
+  let augmented = @millow.augment_pipeline(img, [
     @millow.Augmentation::FlipHorizontal,
     @millow.Augmentation::Rotate(15.0),
     @millow.Augmentation::Brightness(1.2),
@@ -187,148 +160,21 @@ fn main {
       return
     }
   }
-  save_jpg(augmented, "demo_output/29_augment_pipeline.jpg")
-  println("29. augment_pipeline (5 ops) - saved")
-
-  // Randomly pick one augmentation from a weighted list.
-  let choice = @millow.augment_random_choice(canvas, [
-    (0.4, @millow.Augmentation::FlipVertical),
-    (0.4, @millow.Augmentation::Gamma(0.8)),
-    (0.2, @millow.Augmentation::ColorJitter(0.2, 0.2, 0.0, 0.0)),
-  ]) catch {
-    _ => {
-      println("Error: augment_random_choice failed")
-      return
-    }
-  }
-  save_jpg(choice, "demo_output/30_augment_random_choice.jpg")
-  println("30. augment_random_choice - saved")
+  println("32. augment_pipeline (5 ops): \{@millow.info(augmented)}")
   println(" ")
 
   // === Metrics ===
   println("Quality metrics:")
-  println("  PSNR(original, blurred) = \{@millow.psnr(canvas, blur)} dB")
-  println("  MSE(original, blurred)  = \{@millow.mse(canvas, blur)}")
-  println("  SSIM(original, blurred) = \{@millow.ssim(canvas, blur)}")
+  println("  PSNR(original, blurred) = \{@millow.psnr(img, blurred)} dB")
+  println("  MSE(original, blurred)  = \{@millow.mse(img, blurred)}")
+  println("  SSIM(original, blurred) = \{@millow.ssim(img, blurred)}")
+  println(" ")
+
+  // === PPM serialization ===
+  let ppm = @millow.to_ppm(img)
+  println("PPM serialization: \{ppm.length()} bytes")
   println(" ")
 
   println("=== Demo complete! ===")
-  println("Generated 30 output images (JPEG) in demo_output/ directory.")
-}
-
-///|
-/// Decode an image from bytes, auto-detecting PNG or JPEG format.
-fn decode_image(data : Bytes) -> @image.ImageData raise {
-  if data.length() >= 4 {
-    let b0 = data[0].to_int()
-    let b1 = data[1].to_int()
-    let b2 = data[2].to_int()
-    let b3 = data[3].to_int()
-    // PNG: 89 50 4E 47
-    if b0 == 0x89 && b1 == 0x50 && b2 == 0x4E && b3 == 0x47 {
-      return @image.decode_png(data)
-    }
-    // JPEG: FF D8
-    if b0 == 0xFF && b1 == 0xD8 {
-      return @image.decode_jpeg(data)
-    }
-  }
-  // Default: try PNG, then JPEG
-  @image.decode_png(data)
-}
-
-///|
-/// Convert mizchi/image ImageData to millow Image.
-fn image_data_to_millow(img_data : @image.ImageData) -> @millow.Image {
-  let h = img_data.height
-  let w = img_data.width
-  let data = Array::make(h * w * 4, (0 : Byte))
-  let src = img_data.data
-  for i = 0; i < data.length(); i = i + 1 {
-    data[i] = src[i]
-  }
-  { data, h, w }
-}
-
-///|
-/// Convert millow Image to mizchi/image ImageData.
-fn millow_to_image_data(img : @millow.Image) -> @image.ImageData {
-  { width: img.w, height: img.h, data: Bytes::from_array(img.data) }
-}
-
-///|
-/// Save a millow Image as a JPEG file (quality = 90).
-fn save_jpg(img : @millow.Image, filename : String) -> Unit {
-  let img_data = millow_to_image_data(img)
-  let jpg_bytes = @image.encode_jpeg(img_data, quality=90) catch {
-    _ => {
-      println("Error: cannot encode JPEG for \{filename}")
-      return
-    }
-  }
-  @fs.write_bytes_to_file(filename, jpg_bytes) catch {
-    _ => println("Error: cannot write \{filename}")
-  }
-}
-
-///|
-fn visualize_corners(
-  img : @millow.Image,
-  corners : Array[Array[Double]],
-) -> @millow.Image {
-  let mut result = img
-  let threshold = 0.1
-  for y = 0; y < corners.length(); y = y + 1 {
-    for x = 0; x < corners[y].length(); x = x + 1 {
-      if corners[y][x] > threshold {
-        result = @millow.draw_circle(result, y, x, 3, 255, 0, 0, 255, true, 1)
-      }
-    }
-  }
-  result
-}
-
-///|
-fn draw_contours(
-  img : @millow.Image,
-  contours : Array[Array[(Int, Int)]],
-) -> @millow.Image {
-  let mut result = img
-  let colors = [
-    (255, 0, 0),
-    (0, 255, 0),
-    (0, 0, 255),
-    (255, 255, 0),
-    (255, 0, 255),
-  ]
-  for i = 0; i < contours.length(); i = i + 1 {
-    let (r, g, b) = colors[i % colors.length()]
-    for j = 0; j < contours[i].length(); j = j + 1 {
-      let (y, x) = contours[i][j]
-      result = @millow.draw_pixel(
-        result,
-        y,
-        x,
-        r.to_byte(),
-        g.to_byte(),
-        b.to_byte(),
-        255,
-      )
-    }
-  }
-  result
-}
-
-///|
-fn lbp_to_image(codes : Array[Int], h : Int, w : Int) -> @millow.Image {
-  let img = @millow.Image::new(h, w)
-  for i = 0; i < codes.length(); i = i + 1 {
-    let o = i * 4
-    let val = codes[i].min(255).to_byte()
-    img.data[o] = val
-    img.data[o + 1] = val
-    img.data[o + 2] = val
-    img.data[o + 3] = 255
-  }
-  img
+  println("For full demo with JPEG I/O, see examples/ directory.")
 }

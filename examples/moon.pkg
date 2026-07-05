@@ -1,5 +1,7 @@
 import {
   "megemini/millow",
+  "mizchi/image",
+  "moonbitlang/x/fs",
 }
 
 options(

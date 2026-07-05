@@ -68,7 +68,8 @@ millow/
 ├── millow.mbt        # root facade: re-exports the public API
 ├── test/             # blackbox tests for the public API
 ├── test_alignment/   # alignment tests against Python reference
-└── cmd/main/         # runnable end-to-end demo
+├── cmd/main/         # lightweight synthetic-image demo (millow-only)
+└── examples/         # standalone full demo (PNG/JPEG I/O via mizchi/image)
 ```
 
 - The root package (`megemini/millow`) is a **thin facade** that re-exports
