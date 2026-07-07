@@ -109,3 +109,56 @@ pub fn rotate_270(img : Image) -> Image {
   }
   out
 }
+
+///|
+/// Remove blank borders by finding the content bounding box.
+///
+/// Scans the image and finds the tightest bounding box containing pixels with
+/// luma below `threshold` (i.e. dark/content pixels). Returns the cropped
+/// sub-image.
+///
+/// - `threshold`: luma value at or above which a pixel is considered blank
+///   (default `240`, suitable for white-background documents). For binary
+///   images (foreground = 255, background = 0), set `threshold` to `128` or
+///   lower.
+///
+/// Raises `ImageError` if no content is found.
+pub fn auto_crop(
+  img : Image,
+  threshold? : Byte = 240,
+) -> Image raise ImageError {
+  let th = threshold.to_int()
+  let h = img.h
+  let w = img.w
+  let mut y_min = h
+  let mut y_max = 0
+  let mut x_min = w
+  let mut x_max = 0
+  let mut found = false
+  for y = 0; y < h; y = y + 1 {
+    let row = y * w * 4
+    for x = 0; x < w; x = x + 1 {
+      let o = row + x * 4
+      let l = luma(img.data[o], img.data[o + 1], img.data[o + 2])
+      if l < th {
+        found = true
+        if y < y_min {
+          y_min = y
+        }
+        if y > y_max {
+          y_max = y
+        }
+        if x < x_min {
+          x_min = x
+        }
+        if x > x_max {
+          x_max = x
+        }
+      }
+    }
+  }
+  if !found {
+    raise ImageError("auto_crop: no content found")
+  }
+  crop(img, y_min, x_min, y_max - y_min + 1, x_max - x_min + 1)
+}
