@@ -30,3 +30,9 @@ test "align flatten_alpha" {
   let img = img_from_ints(2, 2, in_alpha_2x2)
   assert_img_eq(flatten_alpha(img, 10, 20, 30), exp_flatten_alpha)
 }
+
+///|
+test "align kmeans_quantize k=2" {
+  let img = img_from_ints(4, 4, in_grad_4x4)
+  assert_img_eq(kmeans_quantize(img, 2), exp_kmeans_2)
+}
