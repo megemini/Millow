@@ -1193,8 +1193,329 @@ def hu_moments(img):
 
 
 # ---------------------------------------------------------------------------
-# Code generation
+# OCR preprocessing
 # ---------------------------------------------------------------------------
+
+def project_horizontal(img):
+    """Sum of luma per row, length h."""
+    y = luma(img[..., 0], img[..., 1], img[..., 2])
+    return np.sum(y, axis=1).tolist()
+
+
+def project_vertical(img):
+    """Sum of luma per column, length w."""
+    y = luma(img[..., 0], img[..., 1], img[..., 2])
+    return np.sum(y, axis=0).tolist()
+
+
+def project_horizontal_binary(img):
+    """Count of non-zero (foreground) pixels per row, length h."""
+    fg = (img[..., 0] != 0) | (img[..., 1] != 0) | (img[..., 2] != 0)
+    return np.count_nonzero(fg, axis=1).tolist()
+
+
+def project_vertical_binary(img):
+    """Count of non-zero (foreground) pixels per column, length w."""
+    fg = (img[..., 0] != 0) | (img[..., 1] != 0) | (img[..., 2] != 0)
+    return np.count_nonzero(fg, axis=0).tolist()
+
+
+def auto_crop(img, threshold=240):
+    """Crop to bounding box of pixels with luma < threshold."""
+    y = luma(img[..., 0], img[..., 1], img[..., 2])
+    mask = y < threshold
+    rows = np.any(mask, axis=1)
+    cols = np.any(mask, axis=0)
+    y_min, y_max = np.where(rows)[0][[0, -1]]
+    x_min, x_max = np.where(cols)[0][[0, -1]]
+    return img[y_min:y_max + 1, x_min:x_max + 1].copy()
+
+
+def remove_small_objects(img, min_area):
+    """Remove connected components with area < min_area (8-connectivity)."""
+    fg = (img[..., 0] != 0) | (img[..., 1] != 0) | (img[..., 2] != 0)
+    out = np.zeros_like(img)
+    out[..., 3] = img[..., 3]
+    labeled = skimage.measure.label(fg, connectivity=2)
+    props = skimage.measure.regionprops(labeled)
+    for prop in props:
+        if prop.area >= min_area:
+            for r, c in prop.coords:
+                out[r, c, 0] = 255
+                out[r, c, 1] = 255
+                out[r, c, 2] = 255
+    return out
+
+
+def remove_small_holes(img, max_area):
+    """Fill holes (dark regions) with area <= max_area."""
+    fg = (img[..., 0] != 0) | (img[..., 1] != 0) | (img[..., 2] != 0)
+    filled = morphology.remove_small_holes(fg, area_threshold=max_area + 1)
+    out = np.zeros_like(img)
+    out[..., 3] = img[..., 3]
+    out[filled, 0] = 255
+    out[filled, 1] = 255
+    out[filled, 2] = 255
+    return out
+
+
+def threshold_niblack(img, window_size, k):
+    """Niblack local thresholding: T = mean + k * std."""
+    gray = luma(img[..., 0], img[..., 1], img[..., 2]).astype(np.float64)
+    h, w = gray.shape
+    r = window_size // 2
+    out = np.zeros_like(img)
+    out[..., 3] = img[..., 3]
+    # Build integral images
+    w1 = w + 1
+    integ = np.zeros((h + 1, w1))
+    integ2 = np.zeros((h + 1, w1))
+    for y in range(h):
+        row_sum = 0.0
+        row_sum2 = 0.0
+        for x in range(w):
+            v = gray[y, x]
+            row_sum += v
+            row_sum2 += v * v
+            integ[y + 1, x + 1] = integ[y, x + 1] + row_sum
+            integ2[y + 1, x + 1] = integ2[y, x + 1] + row_sum2
+    for y in range(h):
+        y0 = max(0, y - r)
+        y1 = min(h - 1, y + r)
+        for x in range(w):
+            x0 = max(0, x - r)
+            x1 = min(w - 1, x + r)
+            count = (y1 - y0 + 1) * (x1 - x0 + 1)
+            cnt = float(count)
+            s = integ[y1 + 1, x1 + 1] - integ[y0, x1 + 1] - integ[y1 + 1, x0] + integ[y0, x0]
+            s2 = integ2[y1 + 1, x1 + 1] - integ2[y0, x1 + 1] - integ2[y1 + 1, x0] + integ2[y0, x0]
+            mean = s / cnt
+            variance = s2 / cnt - mean * mean
+            std = math.sqrt(variance) if variance > 0 else 0.0
+            t = mean + k * std
+            vb = 255 if gray[y, x] >= t else 0
+            out[y, x, 0] = vb
+            out[y, x, 1] = vb
+            out[y, x, 2] = vb
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Integral image, guided filter, line removal, perspective, model input
+# ---------------------------------------------------------------------------
+
+def integral_image_ref(img):
+    """Integral image (summed-area table) from luma, (h+1)x(w+1)."""
+    y = luma(img[..., 0], img[..., 1], img[..., 2]).astype(np.float64)
+    h, w = y.shape
+    integ = np.zeros((h + 1, w + 1))
+    integ[1:, 1:] = y.cumsum(axis=0).cumsum(axis=1)
+    return integ.flatten().tolist()
+
+
+def ssim_ref(a, b):
+    """SSIM with uniform 11x11 window (matching millow's implementation)."""
+    ya = luma(a[..., 0], a[..., 1], a[..., 2]).astype(np.float64)
+    yb = luma(b[..., 0], b[..., 1], b[..., 2]).astype(np.float64)
+    return float(skimage.metrics.structural_similarity(
+        ya, yb, win_size=11, gaussian_weights=False, use_sample_covariance=False, data_range=255.0
+    ))
+
+
+def guided_filter_ref(guide, img, radius, epsilon):
+    """Guided filter using box mean via integral images."""
+    Ig = luma(guide[..., 0], guide[..., 1], guide[..., 2]).astype(np.float64)
+    Ip = luma(img[..., 0], img[..., 1], img[..., 2]).astype(np.float64)
+    h, w = Ig.shape
+
+    def box_mean(arr, r):
+        integ = np.zeros((h + 1, w + 1))
+        integ[1:, 1:] = arr.cumsum(axis=0).cumsum(axis=1)
+        y_idx = np.arange(h)
+        x_idx = np.arange(w)
+        y0 = np.clip(y_idx - r, 0, h - 1)
+        y1 = np.clip(y_idx + r, 0, h - 1)
+        x0 = np.clip(x_idx - r, 0, w - 1)
+        x1 = np.clip(x_idx + r, 0, w - 1)
+        Y0, X0 = np.meshgrid(y0, x0, indexing='ij')
+        Y1, X1 = np.meshgrid(y1, x1, indexing='ij')
+        n = (Y1 - Y0 + 1) * (X1 - X0 + 1)
+        s = integ[Y1 + 1, X1 + 1] - integ[Y0, X1 + 1] - integ[Y1 + 1, X0] + integ[Y0, X0]
+        return s / n
+
+    mean_I = box_mean(Ig, radius)
+    mean_p = box_mean(Ip, radius)
+    mean_Ip = box_mean(Ig * Ip, radius)
+    mean_II = box_mean(Ig * Ig, radius)
+    cov_Ip = mean_Ip - mean_I * mean_p
+    var_I = mean_II - mean_I * mean_I
+    a = cov_Ip / (var_I + epsilon)
+    b = mean_p - a * mean_I
+    mean_a = box_mean(a, radius)
+    mean_b = box_mean(b, radius)
+    q = mean_a * Ig + mean_b
+    out = np.zeros_like(guide)
+    out[..., 0] = np.clip(q, 0, 255).astype(np.uint8)
+    out[..., 1] = out[..., 0]
+    out[..., 2] = out[..., 0]
+    out[..., 3] = 255
+    return out
+
+
+def remove_lines_ref(img, direction, max_thickness):
+    """Remove horizontal/vertical lines via morphological opening + subtraction.
+    Matches millow: operates per-RGB-channel (grayscale min/max morphology),
+    then subtracts the opened image from the original."""
+    h, w = img.shape[:2]
+    thickness = max(max_thickness, 1)
+    result = img.copy()
+    if direction in ('horizontal', 'both'):
+        kw = max(w // 2, 3)
+        kernel = np.ones((thickness, kw), dtype=bool)
+        opened = _morph_open_rgb(img, kernel)
+        for c in range(3):
+            result[..., c] = np.clip(result[..., c].astype(int) - opened[..., c].astype(int), 0, 255).astype(np.uint8)
+    if direction in ('vertical', 'both'):
+        kh = max(h // 2, 3)
+        kernel = np.ones((kh, thickness), dtype=bool)
+        opened = _morph_open_rgb(img, kernel)
+        for c in range(3):
+            result[..., c] = np.clip(result[..., c].astype(int) - opened[..., c].astype(int), 0, 255).astype(np.uint8)
+    return result
+
+
+def _morph_open_rgb(img, kernel):
+    """Grayscale morphological opening (erode then dilate) on each RGB channel
+    with replicate border, matching millow's morph_open."""
+    from scipy import ndimage
+    h, w = img.shape[:2]
+    kh, kw = kernel.shape
+    out = np.zeros_like(img)
+    for c in range(3):
+        ch = img[..., c].astype(int)
+        # Replicate border padding.
+        padded = np.pad(ch, ((kh // 2, kh // 2), (kw // 2, kw // 2)), mode='edge')
+        eroded = np.zeros((h, w), dtype=int)
+        for y in range(h):
+            for x in range(w):
+                window = padded[y:y + kh, x:x + kw]
+                eroded[y, x] = window[kernel].min()
+        # Dilate the eroded result.
+        padded_e = np.pad(eroded, ((kh // 2, kh // 2), (kw // 2, kw // 2)), mode='edge')
+        dilated = np.zeros((h, w), dtype=int)
+        for y in range(h):
+            for x in range(w):
+                window = padded_e[y:y + kh, x:x + kw]
+                dilated[y, x] = window[kernel].max()
+        out[..., c] = np.clip(dilated, 0, 255).astype(np.uint8)
+    out[..., 3] = img[..., 3]
+    return out
+
+
+def resize_to_model_input_ref(img, model_h, model_w, interp='bilinear', pad_color=(255, 255, 255, 255)):
+    """Resize preserving aspect ratio, then center-pad to exact size."""
+    h, w = img.shape[:2]
+    scale = min(model_h / h, model_w / w)
+    new_h = max(1, int(h * scale))
+    new_w = max(1, int(w * scale))
+    if interp == 'nearest':
+        resized = np.array(Image.fromarray(img).resize((new_w, new_h), Image.NEAREST))
+    else:
+        resized = np.array(Image.fromarray(img).resize((new_w, new_h), Image.BILINEAR))
+    out = np.full((model_h, model_w, 4), 0, dtype=np.uint8)
+    out[..., 0] = pad_color[0]
+    out[..., 1] = pad_color[1]
+    out[..., 2] = pad_color[2]
+    out[..., 3] = pad_color[3]
+    top = (model_h - new_h) // 2
+    left = (model_w - new_w) // 2
+    out[top:top + new_h, left:left + new_w] = resized
+    return out
+
+
+def perspective_transform_ref(img, matrix_3x3, dst_h, dst_w, interp='bilinear'):
+    """Perspective transform using skimage."""
+    m = np.array(matrix_3x3).reshape(3, 3)
+    # skimage warp uses inverse map: output → input
+    inv = np.linalg.inv(m)
+
+    def inverse_map(coords):
+        pts = np.column_stack([coords[:, 1], coords[:, 0], np.ones(len(coords))])
+        src = (inv @ pts.T).T
+        w = src[:, 2]
+        src = src[:, :2] / w[:, None]
+        return np.column_stack([src[:, 1], src[:, 0]])  # (sy, sx)
+
+    from skimage.transform import warp
+    out = np.zeros((dst_h, dst_w, 4), dtype=np.uint8)
+    out[..., 3] = 255
+    for c in range(3):
+        # skimage.warp preserves the input range for float inputs, so we pass
+        # the channel as float64 in [0, 255] and clip the warped result directly.
+        warped = warp(img[..., c].astype(np.float64), inverse_map, output_shape=(dst_h, dst_w),
+                       order=1 if interp == 'bilinear' else 0, mode='constant', cval=0)
+        out[..., c] = np.clip(np.round(warped), 0, 255).astype(np.uint8)
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Test images for OCR preprocessing
+# ---------------------------------------------------------------------------
+
+def bordered_6x6():
+    """6x6 image with white border and dark content in rows 2-3, cols 2-3."""
+    img = np.full((6, 6, 4), 255, dtype=np.uint8)
+    img[..., 3] = 255
+    img[2:4, 2:4, 0] = 0
+    img[2:4, 2:4, 1] = 0
+    img[2:4, 2:4, 2] = 0
+    return img
+
+
+def dots_5x5():
+    """5x5 binary image: one 3x3 block and two isolated single-pixel dots."""
+    img = np.zeros((5, 5, 4), dtype=np.uint8)
+    img[..., 3] = 255
+    # 3x3 block at top-left
+    img[0:3, 0:3, 0] = 255
+    img[0:3, 0:3, 1] = 255
+    img[0:3, 0:3, 2] = 255
+    # Single pixel at (1, 4)
+    img[1, 4] = (255, 255, 255, 255)
+    # Single pixel at (4, 4)
+    img[4, 4] = (255, 255, 255, 255)
+    return img
+
+
+def holed_5x5():
+    """5x5 binary image: a 5x5 white block with a 1x1 black hole at center."""
+    img = np.full((5, 5, 4), 255, dtype=np.uint8)
+    img[..., 3] = 255
+    img[2, 2, 0] = 0
+    img[2, 2, 1] = 0
+    img[2, 2, 2] = 0
+    return img
+
+
+def lines_6x6():
+    """6x6 binary image with a horizontal line (row 1) and a vertical line (col 4),
+    plus a 2x2 block at bottom-left."""
+    img = np.zeros((6, 6, 4), dtype=np.uint8)
+    img[..., 3] = 255
+    # Horizontal line at row 1
+    img[1, :, 0] = 255
+    img[1, :, 1] = 255
+    img[1, :, 2] = 255
+    # Vertical line at col 4
+    img[:, 4, 0] = 255
+    img[:, 4, 1] = 255
+    img[:, 4, 2] = 255
+    # 2x2 block at (4,0)-(5,1)
+    img[4:6, 0:2, 0] = 255
+    img[4:6, 0:2, 1] = 255
+    img[4:6, 0:2, 2] = 255
+    return img
+
 
 def arr_to_moonbit(name: str, data) -> str:
     """Convert a flat array/list of ints to a MoonBit Array[Int] literal."""
@@ -1205,6 +1526,409 @@ def arr_to_moonbit(name: str, data) -> str:
         lines.append("  " + ", ".join(str(v) for v in chunk) + ",")
     lines.append("]")
     return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# New algorithm reference implementations
+# ---------------------------------------------------------------------------
+
+def threshold_bernsen_ref(img, window_size, contrast_limit):
+    """Bernsen local threshold: T = (min+max)/2, low-contrast -> background."""
+    gray = luma(img[..., 0], img[..., 1], img[..., 2]).astype(int)
+    h, w = gray.shape
+    r = window_size // 2
+    out = np.zeros_like(img)
+    for y in range(h):
+        y0, y1 = clampi(y - r, 0, h - 1), clampi(y + r, 0, h - 1)
+        for x in range(w):
+            x0, x1 = clampi(x - r, 0, w - 1), clampi(x + r, 0, w - 1)
+            window = gray[y0:y1 + 1, x0:x1 + 1]
+            vmin, vmax = int(window.min()), int(window.max())
+            pl = int(gray[y, x])
+            if vmax - vmin < contrast_limit:
+                vb = 255
+            elif pl >= (vmin + vmax) // 2:
+                vb = 255
+            else:
+                vb = 0
+            out[y, x, 0] = vb
+            out[y, x, 1] = vb
+            out[y, x, 2] = vb
+            out[y, x, 3] = img[y, x, 3]
+    return out
+
+
+def threshold_wolf_ref(img, window_size, k):
+    """Wolf normalized Niblack: T = mean + k*(std/std_max)*(mean-min_global)."""
+    gray = luma(img[..., 0], img[..., 1], img[..., 2]).astype(np.float64)
+    h, w = gray.shape
+    r = window_size // 2
+    # Integral images for mean/variance.
+    w1 = w + 1
+    integ = np.zeros((h + 1, w1))
+    integ2 = np.zeros((h + 1, w1))
+    for y in range(h):
+        rs = 0.0
+        rs2 = 0.0
+        for x in range(w):
+            v = gray[y, x]
+            rs += v
+            rs2 += v * v
+            integ[y + 1, x + 1] = integ[y, x + 1] + rs
+            integ2[y + 1, x + 1] = integ2[y, x + 1] + rs2
+    min_global = float(gray.min())
+    stds = np.zeros((h, w))
+    std_max = 0.0
+    for y in range(h):
+        y0, y1 = clampi(y - r, 0, h - 1), clampi(y + r, 0, h - 1)
+        for x in range(w):
+            x0, x1 = clampi(x - r, 0, w - 1), clampi(x + r, 0, w - 1)
+            cnt = (y1 - y0 + 1) * (x1 - x0 + 1)
+            s = integ[y1 + 1, x1 + 1] - integ[y0, x1 + 1] - integ[y1 + 1, x0] + integ[y0, x0]
+            s2 = integ2[y1 + 1, x1 + 1] - integ2[y0, x1 + 1] - integ2[y1 + 1, x0] + integ2[y0, x0]
+            mean = s / cnt
+            var = s2 / cnt - mean * mean
+            std = math.sqrt(var) if var > 0 else 0.0
+            stds[y, x] = std
+            if std > std_max:
+                std_max = std
+    out = np.zeros_like(img)
+    for y in range(h):
+        y0, y1 = clampi(y - r, 0, h - 1), clampi(y + r, 0, h - 1)
+        for x in range(w):
+            x0, x1 = clampi(x - r, 0, w - 1), clampi(x + r, 0, w - 1)
+            cnt = (y1 - y0 + 1) * (x1 - x0 + 1)
+            s = integ[y1 + 1, x1 + 1] - integ[y0, x1 + 1] - integ[y1 + 1, x0] + integ[y0, x0]
+            mean = s / cnt
+            std = stds[y, x]
+            norm = std / std_max if std_max > 0 else 0.0
+            t = mean + k * norm * (mean - min_global)
+            vb = 255 if float(gray[y, x]) >= t else 0
+            out[y, x, 0] = vb
+            out[y, x, 1] = vb
+            out[y, x, 2] = vb
+            out[y, x, 3] = img[y, x, 3]
+    return out
+
+
+def adaptive_threshold_mean_ref(img, block_size, c):
+    """OpenCV ADAPTIVE_THRESH_MEAN_C: T = mean(window) - C, pixel > T -> 255."""
+    gray = luma(img[..., 0], img[..., 1], img[..., 2]).astype(np.float64)
+    h, w = gray.shape
+    r = block_size // 2
+    w1 = w + 1
+    integ = np.zeros((h + 1, w1))
+    for y in range(h):
+        rs = 0.0
+        for x in range(w):
+            rs += gray[y, x]
+            integ[y + 1, x + 1] = integ[y, x + 1] + rs
+    out = np.zeros_like(img)
+    for y in range(h):
+        y0, y1 = clampi(y - r, 0, h - 1), clampi(y + r, 0, h - 1)
+        for x in range(w):
+            x0, x1 = clampi(x - r, 0, w - 1), clampi(x + r, 0, w - 1)
+            cnt = (y1 - y0 + 1) * (x1 - x0 + 1)
+            s = integ[y1 + 1, x1 + 1] - integ[y0, x1 + 1] - integ[y1 + 1, x0] + integ[y0, x0]
+            t = s / cnt - c
+            vb = 255 if float(gray[y, x]) > t else 0
+            out[y, x, 0] = vb
+            out[y, x, 1] = vb
+            out[y, x, 2] = vb
+            out[y, x, 3] = img[y, x, 3]
+    return out
+
+
+def adaptive_threshold_gaussian_ref(img, block_size, c):
+    """OpenCV ADAPTIVE_THRESH_GAUSSIAN_C: T = gauss_weighted_mean(window) - C."""
+    gray = luma(img[..., 0], img[..., 1], img[..., 2]).astype(np.float64)
+    h, w = gray.shape
+    r = block_size // 2
+    sigma = 0.3 * (r - 1) + 0.8
+    kernel = np.zeros((block_size, block_size))
+    ksum = 0.0
+    for dy in range(-r, r + 1):
+        for dx in range(-r, r + 1):
+            v = math.exp(-((dy * dy + dx * dx)) / (2.0 * sigma * sigma))
+            kernel[dy + r, dx + r] = v
+            ksum += v
+    kernel /= ksum
+    out = np.zeros_like(img)
+    for y in range(h):
+        for x in range(w):
+            acc = 0.0
+            for dy in range(-r, r + 1):
+                sy = clampi(y + dy, 0, h - 1)
+                for dx in range(-r, r + 1):
+                    sx = clampi(x + dx, 0, w - 1)
+                    acc += gray[sy, sx] * kernel[dy + r, dx + r]
+            t = acc - c
+            vb = 255 if float(gray[y, x]) > t else 0
+            out[y, x, 0] = vb
+            out[y, x, 1] = vb
+            out[y, x, 2] = vb
+            out[y, x, 3] = img[y, x, 3]
+    return out
+
+
+def wiener_filter_ref(img, window_size, noise_var):
+    """scipy.signal.wiener-style local Wiener on luma stats, applied per RGB."""
+    h, w = img.shape[:2]
+    r = window_size // 2
+    gray = luma(img[..., 0], img[..., 1], img[..., 2]).astype(np.float64)
+    w1 = w + 1
+    integ = np.zeros((h + 1, w1))
+    integ2 = np.zeros((h + 1, w1))
+    for y in range(h):
+        rs = 0.0
+        rs2 = 0.0
+        for x in range(w):
+            v = gray[y, x]
+            rs += v
+            rs2 += v * v
+            integ[y + 1, x + 1] = integ[y, x + 1] + rs
+            integ2[y + 1, x + 1] = integ2[y, x + 1] + rs2
+    if noise_var < 0:
+        total = 0.0
+        for y in range(h):
+            y0, y1 = clampi(y - r, 0, h - 1), clampi(y + r, 0, h - 1)
+            for x in range(w):
+                x0, x1 = clampi(x - r, 0, w - 1), clampi(x + r, 0, w - 1)
+                cnt = (y1 - y0 + 1) * (x1 - x0 + 1)
+                s = integ[y1 + 1, x1 + 1] - integ[y0, x1 + 1] - integ[y1 + 1, x0] + integ[y0, x0]
+                s2 = integ2[y1 + 1, x1 + 1] - integ2[y0, x1 + 1] - integ2[y1 + 1, x0] + integ2[y0, x0]
+                mean = s / cnt
+                var = s2 / cnt - mean * mean
+                total += var
+        nvar = total / (h * w)
+    else:
+        nvar = noise_var
+    out = np.zeros_like(img)
+    for y in range(h):
+        y0, y1 = clampi(y - r, 0, h - 1), clampi(y + r, 0, h - 1)
+        for x in range(w):
+            x0, x1 = clampi(x - r, 0, w - 1), clampi(x + r, 0, w - 1)
+            cnt = (y1 - y0 + 1) * (x1 - x0 + 1)
+            s = integ[y1 + 1, x1 + 1] - integ[y0, x1 + 1] - integ[y1 + 1, x0] + integ[y0, x0]
+            s2 = integ2[y1 + 1, x1 + 1] - integ2[y0, x1 + 1] - integ2[y1 + 1, x0] + integ2[y0, x0]
+            mean = s / cnt
+            var = s2 / cnt - mean * mean
+            for ch in range(3):
+                pv = float(img[y, x, ch])
+                res = mean + (var - nvar) / var * (pv - mean) if var > nvar else mean
+                out[y, x, ch] = round_byte(res)
+            out[y, x, 3] = img[y, x, 3]
+    return out
+
+
+def dog_ref(img, sigma1, sigma2):
+    """Difference of Gaussians on luma, mapped to [0,255] by +128."""
+    def gblur(im, sigma):
+        # Match millow gaussian_blur: ksize = clamp(ceil(sigma*3)*2+1, 3, 99).
+        ks = max(3, min(99, (math.ceil(sigma * 3)) * 2 + 1))
+        # Use Pillow's GaussianBlur which is close but not exact; instead
+        # implement separable Gaussian with replicate border.
+        c = ks // 2
+        weights = np.zeros(ks)
+        s = 0.0
+        for i in range(ks):
+            d = i - c
+            v = math.exp(-(d * d) / (2.0 * sigma * sigma))
+            weights[i] = v
+            s += v
+        weights /= s
+        src = luma(im[..., 0], im[..., 1], im[..., 2]).astype(np.float64)
+        h, w = src.shape
+        # Horizontal pass.
+        tmp = np.zeros((h, w))
+        for y in range(h):
+            for x in range(w):
+                acc = 0.0
+                for i in range(ks):
+                    sx = clampi(x + i - c, 0, w - 1)
+                    acc += src[y, sx] * weights[i]
+                tmp[y, x] = acc
+        # Vertical pass.
+        out = np.zeros((h, w))
+        for y in range(h):
+            for x in range(w):
+                acc = 0.0
+                for i in range(ks):
+                    sy = clampi(y + i - c, 0, h - 1)
+                    acc += tmp[sy, x] * weights[i]
+                out[y, x] = acc
+        return out
+    l1 = gblur(img, sigma1)
+    l2 = gblur(img, sigma2)
+    diff = (l1 - l2 + 128).astype(int)
+    out = np.zeros_like(img)
+    for y in range(img.shape[0]):
+        for x in range(img.shape[1]):
+            vb = int(max(0, min(255, int(diff[y, x]))))
+            out[y, x, 0] = vb
+            out[y, x, 1] = vb
+            out[y, x, 2] = vb
+            out[y, x, 3] = img[y, x, 3]
+    return out
+
+
+def distance_transform_ref(img, foreground_value=128):
+    """Two-pass 3-4 chamfer distance, rescaled by 1/3."""
+    h, w = img.shape[:2]
+    fg = np.zeros((h, w), dtype=bool)
+    for y in range(h):
+        for x in range(w):
+            l = (int(img[y, x, 0]) * 77 + int(img[y, x, 1]) * 150 + int(img[y, x, 2]) * 29) >> 8
+            fg[y, x] = l >= foreground_value
+    large = float(h + w) * 3.0
+    dist = np.where(fg, large, 0.0)
+    # Forward pass.
+    for y in range(h):
+        for x in range(w):
+            if not fg[y, x]:
+                continue
+            d = dist[y, x]
+            if y > 0:
+                up = dist[y - 1, x] + 3.0
+                if up < d:
+                    d = up
+                if x > 0:
+                    ul = dist[y - 1, x - 1] + 4.0
+                    if ul < d:
+                        d = ul
+                if x < w - 1:
+                    ur = dist[y - 1, x + 1] + 4.0
+                    if ur < d:
+                        d = ur
+            if x > 0:
+                left = dist[y, x - 1] + 3.0
+                if left < d:
+                    d = left
+            dist[y, x] = d
+    # Backward pass.
+    for y in range(h - 1, -1, -1):
+        for x in range(w - 1, -1, -1):
+            if not fg[y, x]:
+                continue
+            d = dist[y, x]
+            if y < h - 1:
+                dn = dist[y + 1, x] + 3.0
+                if dn < d:
+                    d = dn
+                if x < w - 1:
+                    dr = dist[y + 1, x + 1] + 4.0
+                    if dr < d:
+                        d = dr
+                if x > 0:
+                    dl = dist[y + 1, x - 1] + 4.0
+                    if dl < d:
+                        d = dl
+            if x < w - 1:
+                right = dist[y, x + 1] + 3.0
+                if right < d:
+                    d = right
+            dist[y, x] = d
+    result = [[float(dist[y, x]) / 3.0 for x in range(w)] for y in range(h)]
+    return result
+
+
+def kmeans_quantize_ref(img, k, max_iter=20, seed=0):
+    """K-means color quantization with deterministic seeded init (matches millow)."""
+    h, w = img.shape[:2]
+    n = h * w
+    if n == 0 or k <= 0:
+        return img.copy()
+    pixels = img[..., :3].astype(np.float64).reshape(n, 3)
+    if k == 1:
+        mean = pixels.mean(axis=0)
+        out = np.zeros_like(img)
+        for i in range(n):
+            y, x = i // w, i % w
+            mr = round_byte(mean[0])
+            mg = round_byte(mean[1])
+            mb = round_byte(mean[2])
+            out[y, x, 0] = mr
+            out[y, x, 1] = mg
+            out[y, x, 2] = mb
+            out[y, x, 3] = img[y, x, 3]
+        return out
+    # Match millow's init: even spacing + LCG jitter.
+    stride_n = max(1, n // k) if n >= k else 1
+    centroids = np.zeros((k, 3))
+    state = seed
+    for i in range(k):
+        # Match MoonBit's 32-bit signed integer overflow behavior.
+        state = (state * 1103515245 + 12345) & 0xFFFFFFFF
+        if state >= 0x80000000:
+            state -= 0x100000000
+        base = i * stride_n
+        offset = (state if state >= 0 else -state) % stride_n
+        idx = base + offset
+        if idx >= n:
+            idx = n - 1
+        centroids[i] = pixels[idx]
+    labels = np.zeros(n, dtype=int)
+    for _ in range(max_iter):
+        changed = False
+        # Assignment.
+        for i in range(n):
+            best, best_d = 0, -1.0
+            for c in range(k):
+                d = float(((pixels[i] - centroids[c]) ** 2).sum())
+                if best_d < 0 or d < best_d:
+                    best_d, best = d, c
+            if labels[i] != best:
+                labels[i] = best
+                changed = True
+        # Update.
+        sums = np.zeros((k, 3))
+        cnts = np.zeros(k, dtype=int)
+        for i in range(n):
+            c = labels[i]
+            sums[c] += pixels[i]
+            cnts[c] += 1
+        for c in range(k):
+            if cnts[c] > 0:
+                centroids[c] = sums[c] / cnts[c]
+        if not changed:
+            break
+    out = np.zeros_like(img)
+    for i in range(n):
+        y, x = i // w, i % w
+        c = labels[i]
+        out[y, x, 0] = round_byte(centroids[c, 0])
+        out[y, x, 1] = round_byte(centroids[c, 1])
+        out[y, x, 2] = round_byte(centroids[c, 2])
+        out[y, x, 3] = img[y, x, 3]
+    return out
+
+
+def template_match_ref(img, template):
+    """Normalized cross-correlation on luma. Returns 2D list of doubles."""
+    ih, iw = img.shape[:2]
+    th, tw = template.shape[:2]
+    if th > ih or tw > iw or th == 0 or tw == 0:
+        return []
+    igray = luma(img[..., 0], img[..., 1], img[..., 2]).astype(np.float64)
+    tgray = luma(template[..., 0], template[..., 1], template[..., 2]).astype(np.float64)
+    tmean = float(tgray.mean())
+    tnorm_sq = float(((tgray - tmean) ** 2).sum())
+    out_h, out_w = ih - th + 1, iw - tw + 1
+    result = [[0.0 for _ in range(out_w)] for _ in range(out_h)]
+    if tnorm_sq == 0:
+        return result
+    for oy in range(out_h):
+        for ox in range(out_w):
+            patch = igray[oy:oy + th, ox:ox + tw]
+            imean = float(patch.mean())
+            cross = float(((patch - imean) * (tgray - tmean)).sum())
+            inorm_sq = float(((patch - imean) ** 2).sum())
+            denom = math.sqrt(inorm_sq * tnorm_sq)
+            result[oy][ox] = cross / denom if denom > 0 else 0.0
+    return result
+
+
+
 
 
 def img_to_moonbit(name: str, img: np.ndarray) -> str:
@@ -1248,6 +1972,13 @@ def generate():
     dot = dot_3x3()
     bimodal = bimodal_1x4()
     alpha = alpha_2x2()
+    bordered = bordered_6x6()
+    dots = dots_5x5()
+    holed = holed_5x5()
+    grad12_input = np.zeros((12, 12, 4), dtype=np.uint8)
+    for y in range(12):
+        for x in range(12):
+            grad12_input[y, x] = ((x * 21) % 256, (y * 21) % 256, ((x + y) * 17) % 256, 255)
 
     sections = [
         "// Generated by generate_fixtures.py. DO NOT EDIT.",
@@ -1260,6 +1991,11 @@ def generate():
         img_to_moonbit("in_dot_3x3", dot),
         img_to_moonbit("in_bimodal_1x4", bimodal),
         img_to_moonbit("in_alpha_2x2", alpha),
+        img_to_moonbit("in_bordered_6x6", bordered),
+        img_to_moonbit("in_dots_5x5", dots),
+        img_to_moonbit("in_holed_5x5", holed),
+        img_to_moonbit("in_lines_6x6", lines_6x6()),
+        img_to_moonbit("in_grad_12x12", grad12_input),
         "",
         "// ===== Color =====",
         "",
@@ -1281,6 +2017,9 @@ def generate():
         img_to_moonbit("exp_pad_replicate", pad(grad, 1, 1, 1, 1, "replicate")),
         img_to_moonbit("exp_pad_reflect", pad(grad, 1, 1, 1, 1, "reflect")),
         img_to_moonbit("exp_pad_wrap", pad(grad, 1, 1, 1, 1, "wrap")),
+        img_to_moonbit("exp_auto_crop_bordered", auto_crop(bordered, 240)),
+        img_to_moonbit("exp_resize_model_input_8x8", resize_to_model_input_ref(grad, 8, 8)),
+        img_to_moonbit("exp_perspective_identity", perspective_transform_ref(grad, [1, 0, 0, 0, 1, 0, 0, 0, 1], 4, 4)),
         "",
         "// ===== Resize =====",
         "",
@@ -1306,6 +2045,8 @@ def generate():
     sections.append(f"let exp_otsu_threshold : Int = {otsu_thr}")
     sections.append("")
     sections.append(img_to_moonbit("exp_otsu_img", otsu_img))
+    sections.append("")
+    sections.append(img_to_moonbit("exp_threshold_niblack_3", threshold_niblack(grad, 3, -0.2)))
 
     sections.extend([
         "",
@@ -1344,10 +2085,15 @@ def generate():
         img_to_moonbit("exp_dilate_cross", dilate(dot, ("cross", 3))),
         img_to_moonbit("exp_erode_square", erode(dot, ("square", 3))),
         img_to_moonbit("exp_dilate_square", dilate(dot, ("square", 3))),
+        img_to_moonbit("exp_remove_small_objects_4", remove_small_objects(dots, 4)),
+        img_to_moonbit("exp_remove_small_holes_1", remove_small_holes(holed, 1)),
+        img_to_moonbit("exp_remove_lines_h", remove_lines_ref(lines_6x6(), 'horizontal', 1)),
+        img_to_moonbit("exp_remove_lines_both", remove_lines_ref(lines_6x6(), 'both', 1)),
         "",
         "// ===== Bilateral filter =====",
         "",
         img_to_moonbit("exp_bilateral_5_01_10", bilateral_filter(grad, 5, 0.1, 10.0)),
+        img_to_moonbit("exp_guided_filter_2_50", guided_filter_ref(grad, grad, 2, 50.0)),
         "",
         "// ===== Affine transform =====",
         "",
@@ -1367,8 +2113,39 @@ def generate():
         int_arr2_to_moonbit("exp_connected_components", connected_components(dot)[0]),
         float_arr_to_moonbit("exp_moments", moments(grad)),
         float_arr_to_moonbit("exp_hu_moments", hu_moments(grad)),
+        int_arr_to_moonbit("exp_proj_h_grad", project_horizontal(grad)),
+        int_arr_to_moonbit("exp_proj_v_grad", project_vertical(grad)),
+        int_arr_to_moonbit("exp_proj_h_binary_dot", project_horizontal_binary(dot)),
+        int_arr_to_moonbit("exp_proj_v_binary_dot", project_vertical_binary(dot)),
         "",
     ])
+
+    # Integral image and SSIM (float values, generated separately).
+    sections.append("")
+    sections.append(float_arr_to_moonbit("exp_integral_image_grad", integral_image_ref(grad)))
+    sections.append("")
+    # SSIM needs >= 11x11 images, so use the 12x12 gradient.
+    blurred12 = gaussian_blur(grad12_input, 1.0)
+    sections.append("///|")
+    sections.append(f"let exp_ssim_grad_blur : Double = {ssim_ref(grad12_input, blurred12)}")
+    sections.append("")
+
+    # ===== New algorithm fixtures =====
+    # Template for template_match: a 2x2 piece extracted from grad (top-left).
+    tpl_2x2 = grad[0:2, 0:2].copy()
+    sections.append("// ===== New algorithms =====")
+    sections.append("")
+    sections.append(img_to_moonbit("in_tpl_2x2", tpl_2x2))
+    sections.append(img_to_moonbit("exp_bernsen_3_15", threshold_bernsen_ref(grad, 3, 15)))
+    sections.append(img_to_moonbit("exp_wolf_3_neg02", threshold_wolf_ref(grad, 3, -0.2)))
+    sections.append(img_to_moonbit("exp_adapt_mean_3_5", adaptive_threshold_mean_ref(grad, 3, 5.0)))
+    sections.append(img_to_moonbit("exp_adapt_gauss_3_5", adaptive_threshold_gaussian_ref(grad, 3, 5.0)))
+    sections.append(img_to_moonbit("exp_wiener_3_neg1", wiener_filter_ref(grad, 3, -1.0)))
+    sections.append(img_to_moonbit("exp_dog_05_10", dog_ref(grad, 0.5, 1.0)))
+    sections.append(img_to_moonbit("exp_kmeans_2", kmeans_quantize_ref(grad, 2, 20, 0)))
+    sections.append(arr2_to_moonbit("exp_distance_dot", distance_transform_ref(dot)))
+    sections.append(arr2_to_moonbit("exp_template_match_grad", template_match_ref(grad, tpl_2x2)))
+    sections.append("")
 
     return "\n".join(sections)
 

@@ -2,6 +2,10 @@
 package "megemini/millow/src"
 
 // Values
+pub fn adaptive_threshold_gaussian(Image, Int, Double) -> Image
+
+pub fn adaptive_threshold_mean(Image, Int, Double) -> Image
+
 pub fn adjust_brightness(Image, Double) -> Image
 
 pub fn adjust_contrast(Image, Double) -> Image
@@ -19,6 +23,8 @@ pub fn augment_pipeline(Image, Array[Augmentation]) -> Image raise
 pub fn augment_random_choice(Image, Array[(Double, Augmentation)]) -> Image raise
 
 pub fn auto_contrast(Image, Int) -> Image
+
+pub fn auto_crop(Image, threshold? : Byte) -> Image raise ImageError
 
 pub fn bilateral_filter(Image, Int, Double, Double) -> Image
 
@@ -58,7 +64,13 @@ pub fn crop(Image, Int, Int, Int, Int) -> Image raise ImageError
 
 pub fn decode(Array[Byte], String) -> Image raise ImageError
 
+pub fn deskew(Image, max_angle? : Double) -> Image
+
 pub fn dilate(Image, Kernel) -> Image
+
+pub fn distance_transform(Image, foreground_value? : Int) -> Array[Array[Double]]
+
+pub fn dog(Image, Double, Double) -> Image
 
 pub fn draw_circle(Image, Int, Int, Int, Byte, Byte, Byte, Byte, Bool, Int) -> Image
 
@@ -108,6 +120,10 @@ pub fn grayscale_to_rgb(Image) -> Image
 
 pub fn grayscale_to_rgba(Image) -> Image
 
+pub fn guided_filter(Image, Image, Int, Double) -> Image
+
+pub fn guided_filter_self(Image, Int, Double) -> Image
+
 pub fn histogram(Image) -> Array[Int]
 
 pub fn histogram_color(Image) -> Array[Array[Int]]
@@ -118,17 +134,31 @@ pub fn hit_or_miss(Image, Array[Array[Int]]) -> Image
 
 pub fn hog(Image, Int, Int, Int) -> Array[Double]
 
+pub fn hough_lines(Image, Int, theta_resolution? : Int, rho_resolution? : Double) -> Array[(Double, Double, Int)]
+
 pub fn hu_moments(Image) -> Array[Double]
 
 pub fn info(Image) -> String
 
+pub fn integral_array(Array[Byte], Int, Int) -> Array[Double]
+
+pub fn integral_array_sq(Array[Byte], Int, Int) -> Array[Double]
+
+pub fn integral_image(Image) -> Array[Double]
+
+pub fn integral_image_sq(Image) -> Array[Double]
+
 pub fn invert(Image) -> Image
+
+pub fn kmeans_quantize(Image, Int, max_iter? : Int, seed? : Int) -> Image
 
 pub fn laplacian(Image) -> Image
 
 pub fn lbp(Image, Int, Int) -> Array[Int]
 
 pub fn lbp_histogram(Image, Int, Int) -> Array[Int]
+
+pub fn letterbox(Image, Int, Int, color? : (Byte, Byte, Byte, Byte)) -> Image
 
 pub fn luma_at(Image, Int, Int) -> Double
 
@@ -160,11 +190,25 @@ pub fn pad(Image, Int, Int, Int, Int, PadMode) -> Image
 
 pub fn pad_to_size(Image, Int, Int, PadMode) -> Image
 
+pub fn perspective_4pt(Image, Array[(Double, Double)], Array[(Double, Double)], Interp, mode? : BorderMode) -> Image
+
+pub fn perspective_transform(Image, Array[Double], Int, Int, Interp, mode? : BorderMode) -> Image
+
 pub fn prewitt(Image) -> Image
 
 pub fn process_batch(Array[Image], (Image) -> Image) -> Array[Image]
 
+pub fn project_horizontal(Image) -> Array[Int]
+
+pub fn project_horizontal_binary(Image) -> Array[Int]
+
+pub fn project_vertical(Image) -> Array[Int]
+
+pub fn project_vertical_binary(Image) -> Array[Int]
+
 pub fn psnr(Image, Image) -> Double
+
+pub fn query_integral(Array[Double], Int, Int, Int, Int, Int) -> Double
 
 pub fn random_brightness(Image, Double) -> Image
 
@@ -190,6 +234,12 @@ pub fn register_decoder(String, &Decoder) -> Unit
 
 pub fn register_encoder(String, &Encoder) -> Unit
 
+pub fn remove_lines(Image, LineDirection, Int) -> Image
+
+pub fn remove_small_holes(Image, Int) -> Image
+
+pub fn remove_small_objects(Image, Int) -> Image
+
 pub fn rescale(Image, Double, Interp) -> Image
 
 pub fn resize(Image, Int, Int, Interp) -> Image
@@ -197,6 +247,8 @@ pub fn resize(Image, Int, Int, Interp) -> Image
 pub fn resize_to_cover(Image, Int, Int, Interp) -> Image raise ImageError
 
 pub fn resize_to_fit(Image, Int, Int, Interp) -> Image
+
+pub fn resize_to_model_input(Image, Int, Int, interp? : Interp, pad_color? : (Byte, Byte, Byte, Byte)) -> Image
 
 pub fn rotate_180(Image) -> Image
 
@@ -216,6 +268,8 @@ pub fn shear(Image, Double, Double, Interp, mode? : BorderMode) -> Image
 
 pub fn skeletonize(Image) -> Image
 
+pub fn skew_angle(Image, max_angle? : Double) -> Double
+
 pub fn sobel(Image) -> Image
 
 pub fn sobel_x(Image) -> Array[Array[Float]]
@@ -226,13 +280,23 @@ pub fn ssim(Image, Image) -> Double
 
 pub fn standardize(Image) -> Array[Array[Double]]
 
+pub fn template_match(Image, Image) -> Array[Array[Double]]
+
+pub fn template_match_best(Image, Image) -> (Int, Int, Double)
+
 pub fn threshold(Image, Byte) -> Image
 
+pub fn threshold_bernsen(Image, Int, Int) -> Image
+
 pub fn threshold_inv(Image, Byte) -> Image
+
+pub fn threshold_niblack(Image, Int, Double) -> Image
 
 pub fn threshold_otsu(Image) -> (Byte, Image)
 
 pub fn threshold_sauvola(Image, Int, Double) -> Image
+
+pub fn threshold_wolf(Image, Int, Double) -> Image
 
 pub fn thumbnail(Image, Int, Int) -> Image
 
@@ -263,6 +327,8 @@ pub fn top_hat(Image, Kernel) -> Image
 pub fn translate(Image, Double, Double, Interp) -> Image
 
 pub fn unsharp_mask(Image, Double, Double, Byte) -> Image
+
+pub fn wiener_filter(Image, Int, Double) -> Image
 
 // Errors
 pub suberror ImageError {
@@ -333,6 +399,12 @@ pub(all) enum Kernel {
   Cross(Int)
   Square(Int)
   Custom(Array[Array[Bool]])
+} derive(Eq)
+
+pub(all) enum LineDirection {
+  Horizontal
+  Vertical
+  Both
 } derive(Eq)
 
 pub(all) enum PadMode {

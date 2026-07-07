@@ -17,6 +17,7 @@ pub using @src {
   type Augmentation,
   type RegionProps,
   type BorderMode,
+  type LineDirection,
 
   // I/O traits
   trait Decoder,
@@ -47,6 +48,7 @@ pub using @src {
 
   // Geometry
   crop,
+  auto_crop,
   flip_horizontal,
   flip_vertical,
   rotate_90,
@@ -60,9 +62,15 @@ pub using @src {
   rescale,
   resize_to_fit,
   resize_to_cover,
+  resize_to_model_input,
+  letterbox,
   thumbnail,
   pad,
   pad_to_size,
+  skew_angle,
+  deskew,
+  perspective_transform,
+  perspective_4pt,
 
   // Enhancement & tone
   adjust_brightness,
@@ -79,6 +87,11 @@ pub using @src {
   threshold_inv,
   threshold_otsu,
   threshold_sauvola,
+  threshold_niblack,
+  threshold_bernsen,
+  threshold_wolf,
+  adaptive_threshold_mean,
+  adaptive_threshold_gaussian,
   histogram,
   histogram_color,
   equalize_histogram,
@@ -95,6 +108,10 @@ pub using @src {
   min_filter,
   max_filter,
   bilateral_filter,
+  guided_filter,
+  guided_filter_self,
+  wiener_filter,
+  dog,
 
   // Edges
   sobel,
@@ -115,6 +132,9 @@ pub using @src {
   black_hat,
   skeletonize,
   hit_or_miss,
+  remove_small_objects,
+  remove_small_holes,
+  remove_lines,
 
   // Drawing
   draw_pixel,
@@ -140,6 +160,20 @@ pub using @src {
   count_pixels,
   moments,
   hu_moments,
+  project_horizontal,
+  project_vertical,
+  project_horizontal_binary,
+  project_vertical_binary,
+  integral_image,
+  integral_array,
+  integral_image_sq,
+  integral_array_sq,
+  query_integral,
+  hough_lines,
+  distance_transform,
+  template_match,
+  template_match_best,
+  kmeans_quantize,
 
   // Data augmentation
   random_crop,

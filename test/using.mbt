@@ -105,6 +105,22 @@ pub using @millow {
 
   // Thresholding
   threshold_sauvola,
+  threshold_bernsen,
+  threshold_wolf,
+  adaptive_threshold_mean,
+  adaptive_threshold_gaussian,
+
+  // Filters (extended)
+  wiener_filter,
+  dog,
+  guided_filter,
+
+  // Measurement (extended)
+  hough_lines,
+  distance_transform,
+  template_match,
+  template_match_best,
+  kmeans_quantize,
 
   // Metrics & inspection
   info,

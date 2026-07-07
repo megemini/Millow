@@ -6,6 +6,10 @@ import {
 }
 
 // Values
+pub fn adaptive_threshold_gaussian(@src.Image, Int, Double) -> @src.Image
+
+pub fn adaptive_threshold_mean(@src.Image, Int, Double) -> @src.Image
+
 pub fn adjust_brightness(@src.Image, Double) -> @src.Image
 
 pub fn adjust_contrast(@src.Image, Double) -> @src.Image
@@ -23,6 +27,8 @@ pub fn augment_pipeline(@src.Image, Array[@src.Augmentation]) -> @src.Image rais
 pub fn augment_random_choice(@src.Image, Array[(Double, @src.Augmentation)]) -> @src.Image raise
 
 pub fn auto_contrast(@src.Image, Int) -> @src.Image
+
+pub fn auto_crop(@src.Image, threshold? : Byte) -> @src.Image raise @src.ImageError
 
 pub fn bilateral_filter(@src.Image, Int, Double, Double) -> @src.Image
 
@@ -60,7 +66,13 @@ pub fn crop(@src.Image, Int, Int, Int, Int) -> @src.Image raise @src.ImageError
 
 pub fn decode(Array[Byte], String) -> @src.Image raise @src.ImageError
 
+pub fn deskew(@src.Image, max_angle? : Double) -> @src.Image
+
 pub fn dilate(@src.Image, @src.Kernel) -> @src.Image
+
+pub fn distance_transform(@src.Image, foreground_value? : Int) -> Array[Array[Double]]
+
+pub fn dog(@src.Image, Double, Double) -> @src.Image
 
 pub fn draw_circle(@src.Image, Int, Int, Int, Byte, Byte, Byte, Byte, Bool, Int) -> @src.Image
 
@@ -104,6 +116,10 @@ pub fn grayscale_to_rgb(@src.Image) -> @src.Image
 
 pub fn grayscale_to_rgba(@src.Image) -> @src.Image
 
+pub fn guided_filter(@src.Image, @src.Image, Int, Double) -> @src.Image
+
+pub fn guided_filter_self(@src.Image, Int, Double) -> @src.Image
+
 pub fn histogram(@src.Image) -> Array[Int]
 
 pub fn histogram_color(@src.Image) -> Array[Array[Int]]
@@ -114,17 +130,31 @@ pub fn hit_or_miss(@src.Image, Array[Array[Int]]) -> @src.Image
 
 pub fn hog(@src.Image, Int, Int, Int) -> Array[Double]
 
+pub fn hough_lines(@src.Image, Int, theta_resolution? : Int, rho_resolution? : Double) -> Array[(Double, Double, Int)]
+
 pub fn hu_moments(@src.Image) -> Array[Double]
 
 pub fn info(@src.Image) -> String
 
+pub fn integral_array(Array[Byte], Int, Int) -> Array[Double]
+
+pub fn integral_array_sq(Array[Byte], Int, Int) -> Array[Double]
+
+pub fn integral_image(@src.Image) -> Array[Double]
+
+pub fn integral_image_sq(@src.Image) -> Array[Double]
+
 pub fn invert(@src.Image) -> @src.Image
+
+pub fn kmeans_quantize(@src.Image, Int, max_iter? : Int, seed? : Int) -> @src.Image
 
 pub fn laplacian(@src.Image) -> @src.Image
 
 pub fn lbp(@src.Image, Int, Int) -> Array[Int]
 
 pub fn lbp_histogram(@src.Image, Int, Int) -> Array[Int]
+
+pub fn letterbox(@src.Image, Int, Int, color? : (Byte, Byte, Byte, Byte)) -> @src.Image
 
 pub fn match_histogram(@src.Image, @src.Image) -> @src.Image
 
@@ -152,11 +182,25 @@ pub fn pad(@src.Image, Int, Int, Int, Int, @src.PadMode) -> @src.Image
 
 pub fn pad_to_size(@src.Image, Int, Int, @src.PadMode) -> @src.Image
 
+pub fn perspective_4pt(@src.Image, Array[(Double, Double)], Array[(Double, Double)], @src.Interp, mode? : @src.BorderMode) -> @src.Image
+
+pub fn perspective_transform(@src.Image, Array[Double], Int, Int, @src.Interp, mode? : @src.BorderMode) -> @src.Image
+
 pub fn prewitt(@src.Image) -> @src.Image
 
 pub fn process_batch(Array[@src.Image], (@src.Image) -> @src.Image) -> Array[@src.Image]
 
+pub fn project_horizontal(@src.Image) -> Array[Int]
+
+pub fn project_horizontal_binary(@src.Image) -> Array[Int]
+
+pub fn project_vertical(@src.Image) -> Array[Int]
+
+pub fn project_vertical_binary(@src.Image) -> Array[Int]
+
 pub fn psnr(@src.Image, @src.Image) -> Double
+
+pub fn query_integral(Array[Double], Int, Int, Int, Int, Int) -> Double
 
 pub fn random_brightness(@src.Image, Double) -> @src.Image
 
@@ -182,6 +226,12 @@ pub fn register_decoder(String, &@src.Decoder) -> Unit
 
 pub fn register_encoder(String, &@src.Encoder) -> Unit
 
+pub fn remove_lines(@src.Image, @src.LineDirection, Int) -> @src.Image
+
+pub fn remove_small_holes(@src.Image, Int) -> @src.Image
+
+pub fn remove_small_objects(@src.Image, Int) -> @src.Image
+
 pub fn rescale(@src.Image, Double, @src.Interp) -> @src.Image
 
 pub fn resize(@src.Image, Int, Int, @src.Interp) -> @src.Image
@@ -189,6 +239,8 @@ pub fn resize(@src.Image, Int, Int, @src.Interp) -> @src.Image
 pub fn resize_to_cover(@src.Image, Int, Int, @src.Interp) -> @src.Image raise @src.ImageError
 
 pub fn resize_to_fit(@src.Image, Int, Int, @src.Interp) -> @src.Image
+
+pub fn resize_to_model_input(@src.Image, Int, Int, interp? : @src.Interp, pad_color? : (Byte, Byte, Byte, Byte)) -> @src.Image
 
 pub fn rotate_180(@src.Image) -> @src.Image
 
@@ -208,6 +260,8 @@ pub fn shear(@src.Image, Double, Double, @src.Interp, mode? : @src.BorderMode) -
 
 pub fn skeletonize(@src.Image) -> @src.Image
 
+pub fn skew_angle(@src.Image, max_angle? : Double) -> Double
+
 pub fn sobel(@src.Image) -> @src.Image
 
 pub fn sobel_x(@src.Image) -> Array[Array[Float]]
@@ -218,13 +272,23 @@ pub fn ssim(@src.Image, @src.Image) -> Double
 
 pub fn standardize(@src.Image) -> Array[Array[Double]]
 
+pub fn template_match(@src.Image, @src.Image) -> Array[Array[Double]]
+
+pub fn template_match_best(@src.Image, @src.Image) -> (Int, Int, Double)
+
 pub fn threshold(@src.Image, Byte) -> @src.Image
 
+pub fn threshold_bernsen(@src.Image, Int, Int) -> @src.Image
+
 pub fn threshold_inv(@src.Image, Byte) -> @src.Image
+
+pub fn threshold_niblack(@src.Image, Int, Double) -> @src.Image
 
 pub fn threshold_otsu(@src.Image) -> (Byte, @src.Image)
 
 pub fn threshold_sauvola(@src.Image, Int, Double) -> @src.Image
+
+pub fn threshold_wolf(@src.Image, Int, Double) -> @src.Image
 
 pub fn thumbnail(@src.Image, Int, Int) -> @src.Image
 
@@ -256,6 +320,8 @@ pub fn translate(@src.Image, Double, Double, @src.Interp) -> @src.Image
 
 pub fn unsharp_mask(@src.Image, Double, Double, Byte) -> @src.Image
 
+pub fn wiener_filter(@src.Image, Int, Double) -> @src.Image
+
 // Errors
 
 // Types and methods
@@ -272,6 +338,8 @@ pub using @src {type ImageError}
 pub using @src {type Interp}
 
 pub using @src {type Kernel}
+
+pub using @src {type LineDirection}
 
 pub using @src {type PadMode}
 

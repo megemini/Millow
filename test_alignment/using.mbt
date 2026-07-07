@@ -9,6 +9,7 @@ pub using @millow {
   type Kernel,
   type PadMode,
   type PpmEncoder,
+  type LineDirection,
 
   // Channels & color
   to_grayscale,
@@ -21,6 +22,7 @@ pub using @millow {
 
   // Geometry
   crop,
+  auto_crop,
   flip_horizontal,
   flip_vertical,
   rotate_90,
@@ -34,6 +36,12 @@ pub using @millow {
   rescale,
   pad,
   pad_to_size,
+  skew_angle,
+  deskew,
+  perspective_transform,
+  perspective_4pt,
+  resize_to_model_input,
+  letterbox,
 
   // Enhancement & tone
   adjust_brightness,
@@ -48,6 +56,12 @@ pub using @millow {
   threshold,
   threshold_inv,
   threshold_otsu,
+  threshold_sauvola,
+  threshold_niblack,
+  threshold_bernsen,
+  threshold_wolf,
+  adaptive_threshold_mean,
+  adaptive_threshold_gaussian,
   histogram,
   histogram_color,
   equalize_histogram,
@@ -61,6 +75,10 @@ pub using @millow {
   min_filter,
   max_filter,
   bilateral_filter,
+  guided_filter,
+  guided_filter_self,
+  wiener_filter,
+  dog,
 
   // Edges
   sobel,
@@ -78,6 +96,9 @@ pub using @millow {
   morph_gradient,
   top_hat,
   black_hat,
+  remove_small_objects,
+  remove_small_holes,
+  remove_lines,
 
   // Drawing
   draw_pixel,
@@ -100,12 +121,27 @@ pub using @millow {
   count_pixels,
   moments,
   hu_moments,
+  project_horizontal,
+  project_vertical,
+  project_horizontal_binary,
+  project_vertical_binary,
+  integral_image,
+  integral_array,
+  integral_image_sq,
+  integral_array_sq,
+  query_integral,
+  hough_lines,
+  distance_transform,
+  template_match,
+  template_match_best,
+  kmeans_quantize,
 
   // Metrics & inspection
   info,
   equals,
   mse,
   psnr,
+  ssim,
 
   // Serialization
   to_ppm,

@@ -6,6 +6,10 @@ import {
 }
 
 // Values
+pub fn adaptive_threshold_gaussian(@src.Image, Int, Double) -> @src.Image
+
+pub fn adaptive_threshold_mean(@src.Image, Int, Double) -> @src.Image
+
 pub fn adjust_brightness(@src.Image, Double) -> @src.Image
 
 pub fn adjust_contrast(@src.Image, Double) -> @src.Image
@@ -38,6 +42,10 @@ pub fn crop(@src.Image, Int, Int, Int, Int) -> @src.Image raise @src.ImageError
 
 pub fn dilate(@src.Image, @src.Kernel) -> @src.Image
 
+pub fn distance_transform(@src.Image, foreground_value? : Int) -> Array[Array[Double]]
+
+pub fn dog(@src.Image, Double, Double) -> @src.Image
+
 pub fn draw_circle(@src.Image, Int, Int, Int, Byte, Byte, Byte, Byte, Bool, Int) -> @src.Image
 
 pub fn draw_line(@src.Image, Int, Int, Int, Int, Byte, Byte, Byte, Byte, Int) -> @src.Image
@@ -62,17 +70,23 @@ pub fn flip_vertical(@src.Image) -> @src.Image
 
 pub fn gaussian_blur(@src.Image, Double) -> @src.Image
 
+pub fn guided_filter(@src.Image, @src.Image, Int, Double) -> @src.Image
+
 pub fn histogram(@src.Image) -> Array[Int]
 
 pub fn histogram_color(@src.Image) -> Array[Array[Int]]
 
 pub fn hog(@src.Image, Int, Int, Int) -> Array[Double]
 
+pub fn hough_lines(@src.Image, Int, theta_resolution? : Int, rho_resolution? : Double) -> Array[(Double, Double, Int)]
+
 pub fn hu_moments(@src.Image) -> Array[Double]
 
 pub fn info(@src.Image) -> String
 
 pub fn invert(@src.Image) -> @src.Image
+
+pub fn kmeans_quantize(@src.Image, Int, max_iter? : Int, seed? : Int) -> @src.Image
 
 pub fn laplacian(@src.Image) -> @src.Image
 
@@ -142,13 +156,21 @@ pub fn sobel_y(@src.Image) -> Array[Array[Float]]
 
 pub fn ssim(@src.Image, @src.Image) -> Double
 
+pub fn template_match(@src.Image, @src.Image) -> Array[Array[Double]]
+
+pub fn template_match_best(@src.Image, @src.Image) -> (Int, Int, Double)
+
 pub fn threshold(@src.Image, Byte) -> @src.Image
+
+pub fn threshold_bernsen(@src.Image, Int, Int) -> @src.Image
 
 pub fn threshold_inv(@src.Image, Byte) -> @src.Image
 
 pub fn threshold_otsu(@src.Image) -> (Byte, @src.Image)
 
 pub fn threshold_sauvola(@src.Image, Int, Double) -> @src.Image
+
+pub fn threshold_wolf(@src.Image, Int, Double) -> @src.Image
 
 pub fn to_bgr(@src.Image) -> @src.Image
 
@@ -165,6 +187,8 @@ pub fn top_hat(@src.Image, @src.Kernel) -> @src.Image
 pub fn translate(@src.Image, Double, Double, @src.Interp) -> @src.Image
 
 pub fn unsharp_mask(@src.Image, Double, Double, Byte) -> @src.Image
+
+pub fn wiener_filter(@src.Image, Int, Double) -> @src.Image
 
 // Errors
 
