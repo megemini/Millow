@@ -38,3 +38,22 @@ test "align max_filter size=3" {
   let img = img_from_ints(4, 4, in_grad_4x4)
   assert_img_eq(max_filter(img, 3), exp_max_filter_3)
 }
+
+///|
+test "align wiener_filter size=3" {
+  let img = img_from_ints(4, 4, in_grad_4x4)
+  assert_img_close(wiener_filter(img, 3, -1.0), exp_wiener_3_neg1, 2)
+}
+
+///|
+test "align dog sigma=0.5,1.0" {
+  let img = img_from_ints(4, 4, in_grad_4x4)
+  assert_img_close(dog(img, 0.5, 1.0), exp_dog_05_10, 2)
+}
+
+///|
+test "align guided_filter r=2 eps=50" {
+  let img = img_from_ints(4, 4, in_grad_4x4)
+  let result = guided_filter(img, img, 2, 50.0)
+  assert_img_close(result, exp_guided_filter_2_50, 2)
+}

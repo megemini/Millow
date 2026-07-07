@@ -426,3 +426,38 @@ pub fn gaussian_blur_double3(
   }
   (out1, out2, out3)
 }
+
+///|
+/// Difference of Gaussians (DoG) — a band-pass filter for blob and edge
+/// detection.
+///
+/// Computes `gaussian_blur(sigma1) - gaussian_blur(sigma2)` on the luma
+/// channel, then returns the result as an `Image`. Negative differences are
+/// preserved as signed values mapped into `[0, 255]` by adding 128 (so 128 ≈
+/// "no difference"). Pass `sigma1 < sigma2` for the standard blob-detector
+/// configuration.
+///
+/// The output RGB channels all carry the luma difference; alpha is preserved.
+pub fn dog(img : Image, sigma1 : Double, sigma2 : Double) -> Image {
+  let g1 = gaussian_blur(img, sigma1)
+  let g2 = gaussian_blur(img, sigma2)
+  let h = img.h
+  let w = img.w
+  let out = Image::new(h, w)
+  let n = h * w
+  // Gray offset: a difference of 0 maps to mid-gray (128) so the signed
+  // result fits in the [0, 255] byte range. See the function docstring.
+  let gray_offset = 128
+  for i = 0; i < n; i = i + 1 {
+    let o = i * 4
+    let l1 = luma(g1.data[o], g1.data[o + 1], g1.data[o + 2])
+    let l2 = luma(g2.data[o], g2.data[o + 1], g2.data[o + 2])
+    let diff = l1 - l2 + gray_offset
+    let vb = clamp_byte(diff)
+    out.data[o] = vb
+    out.data[o + 1] = vb
+    out.data[o + 2] = vb
+    out.data[o + 3] = img.data[o + 3]
+  }
+  out
+}
