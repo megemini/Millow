@@ -307,3 +307,118 @@ pub fn hit_or_miss(img : Image, kernel : Array[Array[Int]]) -> Image {
   }
   out
 }
+
+///|
+/// Remove small connected components (noise) from a binary image.
+///
+/// Labels the image with 8-connectivity, then keeps only components whose
+/// area is `>= min_area`. Foreground pixels (any RGB channel non-zero) that
+/// belong to small components are set to black; the alpha channel is
+/// preserved. Background pixels remain black.
+///
+/// This is the millow equivalent of `skimage.morphology.remove_small_objects`.
+pub fn remove_small_objects(img : Image, min_area : Int) -> Image {
+  let (labels, num_labels) = connected_components(img, 8)
+  let props = regionprops(labels, num_labels)
+  // Build a keep-set: labels whose area >= min_area.
+  let keep = Array::make(num_labels + 1, false)
+  for i = 0; i < num_labels; i = i + 1 {
+    keep[i + 1] = props[i].area >= min_area
+  }
+  let h = img.h
+  let w = img.w
+  let out = Image::new(h, w)
+  for y = 0; y < h; y = y + 1 {
+    for x = 0; x < w; x = x + 1 {
+      let l = labels[y][x]
+      if l > 0 && keep[l] {
+        let o = img.offset(y, x)
+        let oo = out.offset(y, x)
+        out.data[oo] = 255
+        out.data[oo + 1] = 255
+        out.data[oo + 2] = 255
+        out.data[oo + 3] = img.data[o + 3]
+      } else {
+        let oo = out.offset(y, x)
+        let o = img.offset(y, x)
+        out.data[oo + 3] = img.data[o + 3]
+      }
+    }
+  }
+  out
+}
+
+///|
+/// Fill small holes (dark regions surrounded by foreground) in a binary image.
+///
+/// Inverts the image, removes connected components (holes) with area <
+/// `max_area`, then inverts back. Holes are background pixels (luma < 128)
+/// enclosed by foreground; after filling they become white.
+///
+/// This is the millow equivalent of `skimage.morphology.remove_small_holes`.
+pub fn remove_small_holes(img : Image, max_area : Int) -> Image {
+  // 1. Invert: foreground(white) → background(black), background → foreground.
+  let inverted = threshold_inv(img, 128)
+  // 2. Remove small objects from the inverted image (these are the holes).
+  let cleaned = remove_small_objects(inverted, max_area + 1)
+  // 3. Invert back: background(white) → black, foreground(black) → white.
+  threshold_inv(cleaned, 128)
+}
+
+///|
+/// Direction of lines to remove.
+pub(all) enum LineDirection {
+  Horizontal
+  Vertical
+  Both
+} derive(Eq)
+
+///|
+/// Remove horizontal and/or vertical lines (e.g. table borders, underlines)
+/// from a binary image using morphological opening with directional kernels.
+///
+/// The opening with a long thin kernel preserves only long lines; these are
+/// then subtracted from the original image. Works on binary images where
+/// foreground is white (255) and background is black (0).
+///
+/// - `direction`: `Horizontal`, `Vertical`, or `Both`.
+/// - `max_thickness`: maximum line thickness in pixels (controls kernel width).
+pub fn remove_lines(
+  img : Image,
+  direction : LineDirection,
+  max_thickness : Int,
+) -> Image {
+  let h = img.h
+  let w = img.w
+  let result = img.clone()
+  let thickness = max_thickness.max(1)
+  if direction == Horizontal || direction == Both {
+    let kw = (w / 2).max(3)
+    let kernel = Kernel::Custom(Array::make(thickness, Array::make(kw, true)))
+    let lines = morph_open(img, kernel)
+    for y = 0; y < h; y = y + 1 {
+      for x = 0; x < w; x = x + 1 {
+        let o = result.offset(y, x)
+        for c = 0; c < 3; c = c + 1 {
+          let v = result.data[o + c].to_int() - lines.data[o + c].to_int()
+          result.data[o + c] = clamp_byte(v)
+        }
+      }
+    }
+  }
+  if direction == Vertical || direction == Both {
+    let kh = (h / 2).max(3)
+    let kernel = Kernel::Custom(Array::make(kh, Array::make(thickness, true)))
+    let lines = morph_open(img, kernel)
+    for y = 0; y < h; y = y + 1 {
+      for x = 0; x < w; x = x + 1 {
+        let o = result.offset(y, x)
+        for c = 0; c < 3; c = c + 1 {
+          let v = result.data[o + c].to_int() - lines.data[o + c].to_int()
+          result.data[o + c] = clamp_byte(v)
+        }
+      }
+    }
+  }
+  result
+}
