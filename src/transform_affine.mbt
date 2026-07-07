@@ -163,6 +163,195 @@ pub fn affine_transform(
 }
 
 ///|
+/// Invert a 3×3 matrix (flat row-major `Array[Double]` of length 9).
+fn invert_3x3(m : Array[Double]) -> Array[Double] {
+  let det = m[0] * (m[4] * m[8] - m[5] * m[7]) -
+    m[1] * (m[3] * m[8] - m[5] * m[6]) +
+    m[2] * (m[3] * m[7] - m[4] * m[6])
+  let inv_det = 1.0 / det
+  [
+    (m[4] * m[8] - m[5] * m[7]) * inv_det,
+    (m[2] * m[7] - m[1] * m[8]) * inv_det,
+    (m[1] * m[5] - m[2] * m[4]) * inv_det,
+    (m[5] * m[6] - m[3] * m[8]) * inv_det,
+    (m[0] * m[8] - m[2] * m[6]) * inv_det,
+    (m[2] * m[3] - m[0] * m[5]) * inv_det,
+    (m[3] * m[7] - m[4] * m[6]) * inv_det,
+    (m[1] * m[6] - m[0] * m[7]) * inv_det,
+    (m[0] * m[4] - m[1] * m[3]) * inv_det,
+  ]
+}
+
+///|
+/// Warp an image using a 3×3 homography matrix (perspective transform).
+///
+/// `matrix_3x3` is a flat `Array[Double]` of length 9:
+/// ```
+/// [a, b, c]     x' = (a*x + b*y + c) / (g*x + h*y + 1)
+/// [d, e, f]     y' = (d*x + e*y + f) / (g*x + h*y + 1)
+/// [g, h, 1]
+/// ```
+///
+/// For each output pixel, the inverse homography is applied to find the
+/// source coordinates, then sampled with the given interpolation.
+///
+/// - `dst_h`, `dst_w`: output image dimensions.
+/// - `interp`: interpolation method.
+/// - `mode`: border handling (default `Constant(0, 0, 0, 255)`).
+pub fn perspective_transform(
+  img : Image,
+  matrix_3x3 : Array[Double],
+  dst_h : Int,
+  dst_w : Int,
+  interp : Interp,
+  mode? : BorderMode = Constant(0, 0, 0, 255),
+) -> Image {
+  let inv = invert_3x3(matrix_3x3)
+  let out = Image::new(dst_h, dst_w)
+  for y = 0; y < dst_h; y = y + 1 {
+    for x = 0; x < dst_w; x = x + 1 {
+      let xd = x.to_double()
+      let yd = y.to_double()
+      let w = inv[6] * xd + inv[7] * yd + inv[8]
+      if w.abs() < 1.0e-10 {
+        let o = out.offset(y, x)
+        out.data[o + 3] = 255
+        continue
+      }
+      let sx = (inv[0] * xd + inv[1] * yd + inv[2]) / w
+      let sy = (inv[3] * xd + inv[4] * yd + inv[5]) / w
+      let o = out.offset(y, x)
+      let (r, g, bb, a_val) = match interp {
+        Nearest => get_pixel(img, sy.to_int(), sx.to_int(), mode)
+        _ => sample_bilinear_mode(img, sy, sx, mode)
+      }
+      out.data[o] = r
+      out.data[o + 1] = g
+      out.data[o + 2] = bb
+      out.data[o + 3] = a_val
+    }
+  }
+  out
+}
+
+///|
+/// Convenience: warp from 4 source points to 4 destination points.
+///
+/// Solves the 8-parameter homography mapping `src_pts` → `dst_pts` and applies
+/// `perspective_transform`. Both point arrays must have exactly 4 elements,
+/// each a `(y, x)` tuple. Output dimensions default to the bounding box of
+/// `dst_pts`.
+pub fn perspective_4pt(
+  img : Image,
+  src_pts : Array[(Double, Double)],
+  dst_pts : Array[(Double, Double)],
+  interp : Interp,
+  mode? : BorderMode = Constant(0, 0, 0, 255),
+) -> Image {
+  let h = solve_homography_4pt(src_pts, dst_pts)
+  // Output dimensions: bounding box of dst_pts.
+  let mut y_max = 0.0
+  let mut x_max = 0.0
+  for i = 0; i < 4; i = i + 1 {
+    let (py, px) = dst_pts[i]
+    if py > y_max {
+      y_max = py
+    }
+    if px > x_max {
+      x_max = px
+    }
+  }
+  let dst_h = y_max.ceil().to_int().max(1)
+  let dst_w = x_max.ceil().to_int().max(1)
+  perspective_transform(img, h, dst_h, dst_w, interp, mode~)
+}
+
+///|
+/// Solve homography from 4 correspondences using direct linear method.
+/// Returns 3×3 matrix flat as `Array[Double]` length 9.
+fn solve_homography_4pt(
+  src : Array[(Double, Double)],
+  dst : Array[(Double, Double)],
+) -> Array[Double] {
+  // Build 8×8 linear system Ah = b.
+  // Each correspondence (x, y) → (xp, yp) contributes 2 rows:
+  // [x, y, 1, 0, 0, 0, -xp*x, -xp*y] h = xp
+  // [0, 0, 0, x, y, 1, -yp*x, -yp*y] h = yp
+  // Note: src/dst are (y, x) tuples, so x=src_x, y=src_y.
+  let a = Array::make(8, Array::make(8, 0.0))
+  let b = Array::make(8, 0.0)
+  for i = 0; i < 4; i = i + 1 {
+    let (sy, sx) = src[i]
+    let (dy, dx) = dst[i]
+    let row0 = i * 2
+    let row1 = i * 2 + 1
+    a[row0][0] = sx
+    a[row0][1] = sy
+    a[row0][2] = 1.0
+    a[row0][6] = -dx * sx
+    a[row0][7] = -dx * sy
+    b[row0] = dx
+    a[row1][3] = sx
+    a[row1][4] = sy
+    a[row1][5] = 1.0
+    a[row1][6] = -dy * sx
+    a[row1][7] = -dy * sy
+    b[row1] = dy
+  }
+  let h = gauss_elimination(a, b)
+  [h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], 1.0]
+}
+
+///|
+/// Gaussian elimination with partial pivoting for an n×n system.
+fn gauss_elimination(
+  a : Array[Array[Double]],
+  b : Array[Double],
+) -> Array[Double] {
+  let n = b.length()
+  // Forward elimination with partial pivoting.
+  for k = 0; k < n - 1; k = k + 1 {
+    // Find pivot.
+    let mut max_row = k
+    let mut max_val = a[k][k].abs()
+    for i = k + 1; i < n; i = i + 1 {
+      let v = a[i][k].abs()
+      if v > max_val {
+        max_val = v
+        max_row = i
+      }
+    }
+    // Swap rows.
+    if max_row != k {
+      let tmp = a[k]
+      a[k] = a[max_row]
+      a[max_row] = tmp
+      let tmpb = b[k]
+      b[k] = b[max_row]
+      b[max_row] = tmpb
+    }
+    // Eliminate.
+    for i = k + 1; i < n; i = i + 1 {
+      let factor = a[i][k] / a[k][k]
+      for j = k; j < n; j = j + 1 {
+        a[i][j] = a[i][j] - factor * a[k][j]
+      }
+      b[i] = b[i] - factor * b[k]
+    }
+  }
+  // Back substitution.
+  let x = Array::make(n, 0.0)
+  for i = n - 1; i >= 0; i = i - 1 {
+    let mut sum = b[i]
+    for j = i + 1; j < n; j = j + 1 {
+      sum = sum - a[i][j] * x[j]
+    }
+    x[i] = sum / a[i][i]
+  }
+  x
+}
+
+///|
 /// Translate the image by `(dy, dx)` pixels.
 ///
 /// - `dy`: vertical shift in pixels (positive = downward).

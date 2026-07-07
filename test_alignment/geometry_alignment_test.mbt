@@ -60,3 +60,18 @@ test "align pad Wrap" {
   let img = img_from_ints(4, 4, in_grad_4x4)
   assert_img_eq(pad(img, 1, 1, 1, 1, Wrap), exp_pad_wrap)
 }
+
+///|
+test "align auto_crop" {
+  let img = img_from_ints(6, 6, in_bordered_6x6)
+  let cropped = auto_crop(img)
+  assert_img_eq(cropped, exp_auto_crop_bordered)
+}
+
+///|
+test "align perspective_transform identity" {
+  let img = img_from_ints(4, 4, in_grad_4x4)
+  let m = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+  let result = perspective_transform(img, m, 4, 4, Bilinear)
+  assert_img_close(result, exp_perspective_identity, 2)
+}

@@ -233,3 +233,51 @@ pub fn resize_to_cover(
   let ox = clampi((scaled.w - min_w) / 2, 0, scaled.w)
   crop(scaled, oy, ox, clampi(min_h, 0, scaled.h), clampi(min_w, 0, scaled.w))
 }
+
+///|
+/// Resize to fit a model's fixed input size while preserving aspect ratio,
+/// then center-pad to exactly `(model_h, model_w)`.
+///
+/// This is the standard preprocessing pipeline for OCR/CV models that require
+/// a fixed input shape (e.g. CRNN 32×512, ViT 384×384).
+///
+/// - `model_h`, `model_w`: exact target dimensions.
+/// - `interp`: resampling method (default `Bilinear`).
+/// - `pad_color`: RGBA fill color for padding (default white).
+pub fn resize_to_model_input(
+  img : Image,
+  model_h : Int,
+  model_w : Int,
+  interp? : Interp = Bilinear,
+  pad_color? : (Byte, Byte, Byte, Byte) = (255, 255, 255, 255),
+) -> Image {
+  let fitted = resize_to_fit(img, model_h, model_w, interp)
+  pad_to_size(
+    fitted,
+    model_h,
+    model_w,
+    Constant(pad_color.0, pad_color.1, pad_color.2, pad_color.3),
+  )
+}
+
+///|
+/// Resize to target size by letterboxing (pad with bars to preserve aspect
+/// ratio). Alias of `resize_to_model_input` with a different default name
+/// for familiarity with the common letterboxing technique.
+///
+/// - `target_h`, `target_w`: exact target dimensions.
+/// - `color`: RGBA fill color for padding (default white).
+pub fn letterbox(
+  img : Image,
+  target_h : Int,
+  target_w : Int,
+  color? : (Byte, Byte, Byte, Byte) = (255, 255, 255, 255),
+) -> Image {
+  let fitted = resize_to_fit(img, target_h, target_w, Bilinear)
+  pad_to_size(
+    fitted,
+    target_h,
+    target_w,
+    Constant(color.0, color.1, color.2, color.3),
+  )
+}
