@@ -205,6 +205,83 @@ fn main {
   println("30. augment_random_choice - saved")
   println(" ")
 
+  // === Advanced filters ===
+  let guided = @millow.guided_filter_self(gray, 5, 0.01)
+  save_jpg(guided, "demo_output/31_guided_filter.jpg")
+  println("31. guided_filter_self(radius=5, eps=0.01) - saved")
+
+  let wiener = @millow.wiener_filter(gray, 5, -1.0)
+  save_jpg(wiener, "demo_output/32_wiener_filter.jpg")
+  println("32. wiener_filter(window=5, noise_var=auto) - saved")
+
+  let dog_img = @millow.dog(gray, 1.0, 2.0)
+  save_jpg(dog_img, "demo_output/33_dog.jpg")
+  println("33. dog(sigma1=1.0, sigma2=2.0) - saved")
+  println(" ")
+
+  // === Local thresholding ===
+  let bernsen = @millow.threshold_bernsen(gray, 15, 15)
+  save_jpg(bernsen, "demo_output/34_threshold_bernsen.jpg")
+  println("34. threshold_bernsen(window=15, contrast=15) - saved")
+
+  let wolf = @millow.threshold_wolf(gray, 15, 0.5)
+  save_jpg(wolf, "demo_output/35_threshold_wolf.jpg")
+  println("35. threshold_wolf(window=15, k=0.5) - saved")
+
+  let adap_mean = @millow.adaptive_threshold_mean(gray, 15, 5.0)
+  save_jpg(adap_mean, "demo_output/36_adaptive_threshold_mean.jpg")
+  println("36. adaptive_threshold_mean(window=15, C=5) - saved")
+
+  let adap_gauss = @millow.adaptive_threshold_gaussian(gray, 15, 5.0)
+  save_jpg(adap_gauss, "demo_output/37_adaptive_threshold_gaussian.jpg")
+  println("37. adaptive_threshold_gaussian(window=15, C=5) - saved")
+  println(" ")
+
+  // === Hough lines & morphology ===
+  let edges = @millow.canny(gray, 50.0, 150.0)
+  save_jpg(edges, "demo_output/38_canny.jpg")
+  println("38. canny(low=50, high=150) - saved")
+
+  let lines = @millow.hough_lines(edges, 80)
+  println("39. hough_lines: \{lines.length()} lines detected (threshold=80)")
+
+  let cleaned = @millow.remove_lines(
+    otsu_binary,
+    @millow.LineDirection::Both,
+    2,
+  )
+  save_jpg(cleaned, "demo_output/40_remove_lines.jpg")
+  println("40. remove_lines(Both, max_thickness=2) - saved")
+  println(" ")
+
+  // === Perspective & model input ===
+  let (ph, pw) = canvas.shape()
+  let src_pts = [(0.0, 0.0), (pw.to_double(), 0.0), (pw.to_double(), ph.to_double()), (0.0, ph.to_double())]
+  let dst_pts = [(20.0, 20.0), (pw.to_double() - 20.0, 30.0), (pw.to_double() - 30.0, ph.to_double() - 20.0), (30.0, ph.to_double() - 30.0)]
+  let warped = @millow.perspective_4pt(canvas, src_pts, dst_pts, @millow.Interp::Bilinear)
+  save_jpg(warped, "demo_output/41_perspective_4pt.jpg")
+  println("41. perspective_4pt - saved")
+
+  let model_input = @millow.resize_to_model_input(canvas, 224, 224, interp=@millow.Interp::Bilinear)
+  save_jpg(model_input, "demo_output/42_resize_to_model_input.jpg")
+  println("42. resize_to_model_input(224x224) - saved")
+
+  let letterboxed = @millow.letterbox(canvas, 224, 224, color=(114, 114, 114, 255))
+  save_jpg(letterboxed, "demo_output/43_letterbox.jpg")
+  println("43. letterbox(224x224, color=114) - saved")
+  println(" ")
+
+  // === Quantization & distance transform ===
+  let quant = @millow.kmeans_quantize(canvas, 8, seed=42)
+  save_jpg(quant, "demo_output/44_kmeans_quantize.jpg")
+  println("44. kmeans_quantize(k=8, seed=42) - saved")
+
+  let dt = @millow.distance_transform(otsu_binary)
+  let dt_img = doubles_to_image(dt, otsu_binary.h, otsu_binary.w)
+  save_jpg(dt_img, "demo_output/45_distance_transform.jpg")
+  println("45. distance_transform - saved")
+  println(" ")
+
   // === Metrics ===
   println("Quality metrics:")
   println("  PSNR(original, blurred) = \{@millow.psnr(canvas, blur)} dB")
@@ -213,7 +290,7 @@ fn main {
   println(" ")
 
   println("=== Demo complete! ===")
-  println("Generated 30 output images (JPEG) in demo_output/ directory.")
+  println("Generated 45 output images (JPEG) in demo_output/ directory.")
 }
 
 ///|
@@ -329,6 +406,34 @@ fn lbp_to_image(codes : Array[Int], h : Int, w : Int) -> @millow.Image {
     img.data[o + 1] = val
     img.data[o + 2] = val
     img.data[o + 3] = 255
+  }
+  img
+}
+
+///|
+/// Render a 2D `Array[Array[Double]]` (e.g. distance transform output) as a
+/// grayscale image by scaling the max value to 255.
+fn doubles_to_image(arr : Array[Array[Double]], h : Int, w : Int) -> @millow.Image {
+  let img = @millow.Image::new(h, w)
+  let mut max_v = 0.0
+  for y = 0; y < h; y = y + 1 {
+    for x = 0; x < w; x = x + 1 {
+      let v = arr[y][x]
+      if v > max_v {
+        max_v = v
+      }
+    }
+  }
+  let scale = if max_v > 0.0 { 255.0 / max_v } else { 0.0 }
+  for y = 0; y < h; y = y + 1 {
+    for x = 0; x < w; x = x + 1 {
+      let o = (y * w + x) * 4
+      let val = (arr[y][x] * scale).to_int().min(255).max(0).to_byte()
+      img.data[o] = val
+      img.data[o + 1] = val
+      img.data[o + 2] = val
+      img.data[o + 3] = 255
+    }
   }
   img
 }

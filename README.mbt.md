@@ -42,22 +42,31 @@ moon run .
 - **Core image type** — `Image` with construction, pixel access, cloning,
   channel split/merge, and sub-images.
 - **Color** — grayscale (flat & weighted), invert, tint, BGR, alpha flatten,
-  and `over` compositing.
+  HSV/YCbCr conversions, LUT application, and `over`/`color` compositing.
 - **Geometry** — crop, flips, 90/180/270 rotation, arbitrary rotation,
-  translation, affine transform, resize (nearest / bilinear / bicubic),
-  rescale, fit/cover, thumbnails, and padding.
-- **Enhancement** — brightness, contrast, gamma, normalize, auto-contrast,
-  sharpen, and unsharp mask.
-- **Threshold & histogram** — fixed threshold, Otsu, Sauvola, histogram
-  (gray & color), and equalization.
+  translation, affine transform, shear, perspective transform (8-DOF homography
+  + 4-point convenience), resize (nearest / bilinear / bicubic), rescale,
+  fit/cover, `resize_to_model_input`, `letterbox`, thumbnails, and padding.
+- **Enhancement** — brightness, contrast, gamma, normalize, standardize,
+  auto-contrast, sharpen, and unsharp mask.
+- **Threshold & histogram** — fixed threshold, Otsu, Sauvola, Niblack,
+  Bernsen, Wolf, adaptive threshold (mean / Gaussian), histogram (gray &
+  color), equalization, CLAHE, and histogram matching.
 - **Filters & edges** — convolution, box/Gaussian blur, median/min/max,
-  bilateral filter, Sobel, Scharr, Prewitt, Laplacian, and Canny.
-- **Morphology** — erode, dilate, open, close, gradient, top-hat, black-hat.
-- **Feature detection** — LBP, HOG, Harris corner detection.
+  bilateral filter, **guided filter** (He et al. 2010, O(n) via integral
+  images), **Wiener filter** (adaptive MMSE denoiser), **difference of
+  Gaussians**, Sobel, Scharr, Prewitt, Laplacian, and Canny.
+- **Morphology** — erode, dilate, open, close, gradient, top-hat, black-hat,
+  skeletonize (Zhang-Suen), hit-or-miss, `remove_small_objects` /
+  `remove_small_holes`, and `remove_lines` (directional table-line removal).
+- **Feature detection** — LBP, HOG, Harris corner, and Shi-Tomasi corner.
 - **Measurement** — connected components, find contours, moments, Hu moments,
-  region properties.
+  region properties, pixel counting, **Hough line transform**, **distance
+  transform**, **template matching** (full map + best match), and
+  **K-means color quantization**.
 - **Data augmentation** — random crop, flip, rotate, brightness/contrast/gamma
-  adjustment, Gaussian/salt-pepper noise, color jitter.
+  adjustment, Gaussian/salt-pepper noise, color jitter, and composable
+  pipelines with weighted random choice.
 - **Metrics** — MSE, PSNR, SSIM.
 - **Drawing** — pixels, lines, rectangles, circles, ellipses, polygons, and
   flood fill.

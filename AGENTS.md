@@ -146,6 +146,41 @@ Violating it is the most common source of off-by-one and axis-swap bugs.
   `sign(x) * floor(abs(x) + 0.5)`.
 - **Clamping** helpers: `clampi` (int), `clampd` (double), `clamp_byte`
   (to `Byte` in `[0, 255]`).
+- **No magic numbers**. Algorithm constants must be either (a) named constants
+  with a doc comment citing the source (e.g. `LCG_A`/`LCG_C` in
+  `src/color_quantize.mbt` come from ANSI C / POSIX.1-2001 `rand()`), or
+  (b) part of a formula shown verbatim in the function's docstring (e.g. the
+  `128` in Sauvola's `mean * (1 + k * (std / 128 - 1))` is the dynamic range
+  `R` of an 8-bit image). The BT.601 luma coefficients `77 / 150 / 29 / >>8`
+  are project convention; prefer the `luma(r, g, b)` / `luma_at(img, y, x)`
+  helpers over re-inlining them.
+
+### Random number conventions
+
+millow uses **two** RNG strategies, picked per use case:
+
+- **`@random.Rand::new()`** (MoonBit standard library, ChaCha8-based) — for
+  **non-deterministic** augmentation (`random_crop`, `random_flip_horizontal`,
+  `random_rotate`, `random_brightness`, `random_contrast`, `random_gamma`,
+  `random_noise_gaussian`, `random_noise_salt_pepper`, `random_color_jitter`,
+  `augment_random_choice`). These functions do not accept a seed; each call
+  draws fresh entropy. Use this for any new `random_*` API that does not need
+  cross-language reproducibility.
+
+- **Hand-written LCG** (ANSI C / POSIX.1-2001 `rand()` constants
+  `1103515245` / `12345`, named `LCG_A` / `LCG_C` in
+  `src/color_quantize.mbt`) — only for APIs that **expose an `Int` seed** and
+  must be reproducible byte-for-byte by the Python reference in
+  `test_alignment/generate_fixtures.py`. MoonBit `Int` is 32-bit signed, so the
+  recurrence `state = state * LCG_A + LCG_C` wraps modulo 2³² on overflow; the
+  Python reference mimics this with `& 0xFFFFFFFF` and sign-bit correction.
+  `@random.Rand::chacha8` takes a `Bytes` seed and would be impractical to
+  replicate in Python, so it must not be used for seeded public APIs.
+
+When adding a new seeded algorithm, follow the `kmeans_quantize` pattern:
+accept `seed? : Int = 0`, advance the LCG once per draw, and add a matching
+Python implementation to `generate_fixtures.py` that reproduces the 32-bit
+wrapping.
 
 ### Border handling
 

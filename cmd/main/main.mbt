@@ -163,6 +163,86 @@ fn main {
   println("32. augment_pipeline (5 ops): \{@millow.info(augmented)}")
   println(" ")
 
+  // === Advanced filters (v0.3.0) ===
+  let guided = @millow.guided_filter_self(gray, 5, 0.01)
+  println("33. guided_filter_self(5, 0.01): \{@millow.info(guided)}")
+
+  let wiener = @millow.wiener_filter(gray, 5, -1.0)
+  println("34. wiener_filter(5, auto): \{@millow.info(wiener)}")
+
+  let dog_img = @millow.dog(gray, 1.0, 2.0)
+  println("35. dog(1.0, 2.0): \{@millow.info(dog_img)}")
+
+  let bernsen = @millow.threshold_bernsen(gray, 15, 15)
+  println("36. threshold_bernsen(15, 15): \{@millow.info(bernsen)}")
+
+  let wolf = @millow.threshold_wolf(gray, 15, 0.5)
+  println("37. threshold_wolf(15, 0.5): \{@millow.info(wolf)}")
+
+  let adap_mean = @millow.adaptive_threshold_mean(gray, 15, 5.0)
+  println("38. adaptive_threshold_mean(15, 5): \{@millow.info(adap_mean)}")
+
+  let adap_gauss = @millow.adaptive_threshold_gaussian(gray, 15, 5.0)
+  println("39. adaptive_threshold_gaussian(15, 5): \{@millow.info(adap_gauss)}")
+
+  let edges = @millow.canny(gray, 50.0, 150.0)
+  let lines = @millow.hough_lines(edges, 80)
+  println("40. hough_lines: \{lines.length()} lines (threshold=80)")
+
+  let cleaned = @millow.remove_lines(
+    otsu_binary,
+    @millow.LineDirection::Both,
+    2,
+  )
+  println("41. remove_lines(Both, 2): \{@millow.info(cleaned)}")
+
+  let (ph, pw) = img.shape()
+  let src_pts = [
+    (0.0, 0.0),
+    (pw.to_double(), 0.0),
+    (pw.to_double(), ph.to_double()),
+    (0.0, ph.to_double()),
+  ]
+  let dst_pts = [
+    (20.0, 20.0),
+    (pw.to_double() - 20.0, 30.0),
+    (pw.to_double() - 30.0, ph.to_double() - 20.0),
+    (30.0, ph.to_double() - 30.0),
+  ]
+  let warped = @millow.perspective_4pt(
+    img,
+    src_pts,
+    dst_pts,
+    @millow.Interp::Bilinear,
+  )
+  println("42. perspective_4pt: \{@millow.info(warped)}")
+
+  let model_input = @millow.resize_to_model_input(
+    img,
+    224,
+    224,
+    interp=@millow.Interp::Bilinear,
+  )
+  println("43. resize_to_model_input(224x224): \{@millow.info(model_input)}")
+
+  let letterboxed = @millow.letterbox(img, 224, 224, color=(114, 114, 114, 255))
+  println("44. letterbox(224x224, color=114): \{@millow.info(letterboxed)}")
+
+  let quant = @millow.kmeans_quantize(img, 8, seed=42)
+  println("45. kmeans_quantize(k=8, seed=42): \{@millow.info(quant)}")
+
+  let dt = @millow.distance_transform(otsu_binary)
+  let mut dt_max = 0.0
+  for row in dt {
+    for v in row {
+      if v > dt_max {
+        dt_max = v
+      }
+    }
+  }
+  println("46. distance_transform: max distance = \{dt_max}")
+  println(" ")
+
   // === Metrics ===
   println("Quality metrics:")
   println("  PSNR(original, blurred) = \{@millow.psnr(img, blurred)} dB")
