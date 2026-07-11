@@ -50,7 +50,7 @@ pub fn to_display_bytes(img : Image) -> Array[Byte] {
 ///|
 /// Human-readable summary of the image.
 pub fn info(img : Image) -> String {
-  "Image \{img.w}x\{img.h}, \{img.len()} bytes"
+  "Image \{img.h}x\{img.w}, \{img.len()} bytes"
 }
 
 ///|
