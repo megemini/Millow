@@ -13,7 +13,7 @@ keywords = [ "image", "image-processing", "demo" ]
 description = "Examples for the millow image-processing library."
 
 import {
-  "megemini/millow@0.3.0",
+  "megemini/millow@0.3.1",
   "moonbitlang/x@0.4.46",
   "mizchi/image@0.4.2",
 }

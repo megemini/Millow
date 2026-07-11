@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.3.1 (2026-07-11)
+
+### Fixed
+- `info()` output now uses `(h, w)` dimension order, consistent with the project's coordinate convention.
+
+### Documentation
+- Synced English README feature list with Chinese README (added missing items: HSV/YCbCr, LUT, shear, standardize, CLAHE, histogram matching, hit-or-miss, Shi-Tomasi, pixel counting, weighted random choice).
+- Removed completed "Sauvola threshold" item from roadmap (shipped in v0.2.1).
+
+### Maintenance
+- Added `__pycache__/` to `.gitignore`.
+
 ## v0.3.0 (2026-07-05)
 
 ### Changed

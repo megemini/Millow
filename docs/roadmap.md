@@ -1,6 +1,6 @@
 # Millow Roadmap
 
-**Last updated**: 2026-07-05 | **Current version**: v0.3.0
+**Last updated**: 2026-07-11 | **Current version**: v0.3.1
 
 ## Current State (v0.3.0)
 
@@ -63,8 +63,6 @@ It operates on in-memory RGBA8 buffers and runs on every backend: `wasm-gc`,
 
 ### Performance Optimization
 
-- **Sauvola threshold** — use integral images to reduce complexity from
-  O(n·w²) to O(n).
 - **Median/min/max filters** — replace the current O(n·w²) windowed approach
   with sliding histogram (median) or monotonic deque (min/max) for O(n)
   performance.
