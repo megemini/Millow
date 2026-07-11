@@ -42,22 +42,24 @@ moon run .
 - **Core image type** — `Image` with construction, pixel access, cloning,
   channel split/merge, and sub-images.
 - **Color** — grayscale (flat & weighted), invert, tint, BGR, alpha flatten,
-  and `over` compositing.
+  HSV/YCbCr conversions, LUT application, and `over` compositing.
 - **Geometry** — crop, flips, 90/180/270 rotation, arbitrary rotation,
-  translation, affine transform, resize (nearest / bilinear / bicubic),
+  translation, affine transform, shear, resize (nearest / bilinear / bicubic),
   rescale, fit/cover, thumbnails, and padding.
 - **Enhancement** — brightness, contrast, gamma, normalize, auto-contrast,
-  sharpen, and unsharp mask.
+  standardize, sharpen, and unsharp mask.
 - **Threshold & histogram** — fixed threshold, Otsu, Sauvola, histogram
-  (gray & color), and equalization.
+  (gray & color), equalization, CLAHE, and histogram matching.
 - **Filters & edges** — convolution, box/Gaussian blur, median/min/max,
   bilateral filter, Sobel, Scharr, Prewitt, Laplacian, and Canny.
-- **Morphology** — erode, dilate, open, close, gradient, top-hat, black-hat.
-- **Feature detection** — LBP, HOG, Harris corner detection.
+- **Morphology** — erode, dilate, open, close, gradient, top-hat, black-hat,
+  skeletonize, and hit-or-miss.
+- **Feature detection** — LBP, HOG, Harris corner, and Shi-Tomasi corner.
 - **Measurement** — connected components, find contours, moments, Hu moments,
-  region properties.
+  region properties, and pixel counting.
 - **Data augmentation** — random crop, flip, rotate, brightness/contrast/gamma
-  adjustment, Gaussian/salt-pepper noise, color jitter.
+  adjustment, Gaussian/salt-pepper noise, color jitter, composable pipelines
+  with weighted random choice.
 - **Metrics** — MSE, PSNR, SSIM.
 - **Drawing** — pixels, lines, rectangles, circles, ellipses, polygons, and
   flood fill.
