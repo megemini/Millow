@@ -58,6 +58,8 @@ pub fn crop(Image, Int, Int, Int, Int) -> Image raise ImageError
 
 pub fn decode(Array[Byte], String) -> Image raise ImageError
 
+pub fn density_scaling(Image, char_count? : Int?, min_pixels_per_char? : Int, margin_ratio? : Double, dark_text? : Bool, min_scale? : Double, bboxes? : Array[(Int, Int, Int, Int)]?, min_char_width? : Int, min_char_height? : Int) -> Image
+
 pub fn dilate(Image, Kernel) -> Image
 
 pub fn draw_circle(Image, Int, Int, Int, Byte, Byte, Byte, Byte, Bool, Int) -> Image

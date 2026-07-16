@@ -63,6 +63,7 @@ pub using @src {
   thumbnail,
   pad,
   pad_to_size,
+  density_scaling,
 
   // Enhancement & tone
   adjust_brightness,
